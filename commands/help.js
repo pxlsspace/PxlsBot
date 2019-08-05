@@ -70,6 +70,7 @@ const command = new Command(
   'Returns a list of commands, or if specified, information about a specific command.',
   'help [item identifier]',
   [ 'help', '?' ],
+  false,
   0
 );
 command.init = init;

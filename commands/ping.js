@@ -29,6 +29,8 @@ const command = new Command(
   'ping',
   // Aliases
   [ 'ping' ],
+  // Server Only
+  false,
   // Permissions
   0
 );

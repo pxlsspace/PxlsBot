@@ -40,7 +40,11 @@ async function execute (message) {
     if (match.serverOnly && !message.guild) {
       return message.channel.send('This command may only be run in a guild.');
     }
-    logger.debug(message.author.tag + ' is executing command "' + match.name + '" in guild "' + message.guild.name + '".');
+    if (!match.hasPermission(message.member)) {
+      logger.debug(`${message.author.tag} attempted to execute command "${match.name}" in guild "${message.guild.name}" without permission.`);
+      return message.channel.send('You do not have permission to run this command.');
+    }
+    logger.debug(`${message.author.tag} is executing command "${match.name}" in guild "${message.guild.name}".`);
     match.execute(client, message);
   }
 }

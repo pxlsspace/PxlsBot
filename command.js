@@ -11,12 +11,13 @@ class Command {
    * @param {string[]} aliases A list of the command aliases.
    * @param {number} permissions The permission bitfield.
    */
-  constructor (name, category, description, usage, aliases, permissions) {
+  constructor (name, category, description, usage, aliases, serverOnly, permissions) {
     this.name = name;
     this.category = category;
     this.description = description;
     this.usage = usage;
     this.aliases = aliases;
+    this.serverOnly = serverOnly;
     this.permissions = permissions;
   }
 
