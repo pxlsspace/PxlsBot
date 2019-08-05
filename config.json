@@ -1,0 +1,18 @@
+{
+	"token": "",
+	"prefix": "!",
+	"eventsPath": "events",
+	"commandsPath": "commands",
+	"logging": {
+		"saveToFile": true,
+		"level": "INFO"
+	},
+	"presence": {
+		"status": "online",
+		"game": {
+			"name": "pxls.space",
+			"type": "PLAYING",
+			"url": "https://pxls.space/"
+		}
+	}
+}
