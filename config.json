@@ -3,6 +3,7 @@
 	"prefix": "!",
 	"eventsPath": "events",
 	"commandsPath": "commands",
+	"reconnectTimeout": 15000,
 	"logging": {
 		"saveToFile": true,
 		"level": "INFO"
