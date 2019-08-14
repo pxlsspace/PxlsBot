@@ -4,6 +4,7 @@ class Command {
   /**
    * Creates a new Command.
    * @class
+   * @param {string} id The database-friendly ID of the command.
    * @param {string} name The name of the command.
    * @param {string} category The category of the command.
    * @param {string} description A description of the command.
@@ -11,7 +12,8 @@ class Command {
    * @param {string[]} aliases A list of the command aliases.
    * @param {number} permissions The permission bitfield.
    */
-  constructor (name, category, description, usage, aliases, serverOnly, permissions) {
+  constructor (id, name, category, description, usage, aliases, serverOnly, permissions) {
+    this.id = id;
     this.name = name;
     this.category = category;
     this.description = description;

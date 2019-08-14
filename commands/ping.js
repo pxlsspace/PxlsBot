@@ -19,6 +19,8 @@ async function execute (client, message) {
 }
 
 const command = new Command(
+  // Database-friendly ID
+  'ping',
   // Name
   'Ping',
   // Category

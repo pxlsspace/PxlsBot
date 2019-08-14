@@ -65,6 +65,7 @@ async function execute (client, message) {
 }
 
 const command = new Command(
+  'help',
   'Help',
   'Utility',
   'Returns a list of commands, or if specified, information about a specific command.',
