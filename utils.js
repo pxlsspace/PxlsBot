@@ -208,4 +208,126 @@ Color.rainbow = {
   hotpink: new Color(255, 0, 127)
 };
 
-module.exports = { getEvents, getCommands, multiplyBy, clamp, Color };
+/**
+ * Returns whether or not the input snowflake is valid.
+ * @param {string} input The snowflake.
+ * @returns {boolean}
+ */
+function isSnowflake (input) {
+  return !isNaN(input) && input.length === 18;
+}
+
+/**
+ * Finds a user, member, role, or channel by the specified input.
+ * @param {Discord.Client} client The client.
+ * @param {Discord.Message} message The message.
+ * @param {string} input The input.
+ * @param {string} type The type.
+ * @returns {Discord.User | Discord.GuildMember | Discord.Role | Discord.TextChannel | false}
+ */
+async function find (client, message, input, type) {
+  let retVal;
+  if (type === 'user') {
+    if (isSnowflake(input)) {
+      // Attempt to fetch the user by their ID
+      retVal = await client.fetchUser(input).catch(false);
+    } else {
+      // Attempt to find the user by their tag
+      retVal = await client.users.find(v => {
+        return v.tag.toLowerCase() === input.toLowerCase();
+      }).catch(false);
+    }
+  } else if (type === 'member') {
+    if (isSnowflake(input)) {
+      // Attempt to fetch the member by their ID
+      retVal = await message.guild.fetchMember(input).catch(false);
+    } else {
+      // Attempt to fetch the member by their display name or username
+      retVal = await message.guild.members.find(v => {
+        return v.displayName.toLowerCase() === input.toLowerCase();
+      }).catch(false);
+    }
+  } else if (type === 'role') {
+    if (isSnowflake(input)) {
+      // Attempt to get the role by the ID
+      retVal = message.guild.roles.get(input) || false;
+    } else {
+      // Attempt to get the role by the name
+      // The first role with the matching name will be returned
+      retVal = message.guild.roles.find(v => {
+        return v.name.toLowerCase() === input.toLowerCase();
+      }) || false;
+    }
+  } else if (type === 'channel') {
+    if (isSnowflake(input)) {
+      // Attempt to get the channel by the ID
+      retVal = message.guild.channels.get(input) || false;
+    } else {
+      // Attempt to get the channel by the name
+      retVal = message.guild.channels.find(v => {
+        return v.name.toLowerCase() === input.toLowerCase();
+      }) || false;
+    }
+  }
+  return retVal;
+}
+
+/** Finds a user by the input. */
+const findUser = (...x) => find(...x, 'user');
+/** Finds a member by the input. */
+const findMember = (...x) => find(...x, 'member');
+/** Finds a role by the input. */
+const findRole = (...x) => find(...x, 'role');
+/** Finds a channel by the input. */
+const findChannel = (...x) => find(...x, 'channel');
+
+/**
+ * Returns the seconds parsed from the input duration string.
+ * @param {string | null} input The duration or null if it could not be parsed.
+ * @returns {number}
+ */
+function parseDuration (input) {
+  if (!isNaN(input)) {
+    // If a plain number is specified, return that in minutes.
+    return parseInt(input) * 60;
+  }
+  const regex = /([\d]+) ?([a-z]+)/;
+  const matches = input.match(new RegExp(regex, 'g'));
+  if (matches == null) {
+    return null;
+  }
+  let retVal = 0;
+  for (let match of matches) {
+    const _match = match.match(regex);
+    const amount = parseInt(_match[1]);
+    const type = _match[2].toLowerCase();
+    if (/mo(nth)?s?/.test(type)) {
+      retVal += amount * 60 * 60 * 24 * (365 / 12);
+    } else if (/w(ee)?k?s?/.test(type)) {
+      retVal += amount * 60 * 60 * 24 * 7;
+    } else if (/d(ay)?s?/.test(type)) {
+      retVal += amount * 60 * 60 * 24;
+    } else if (/h(ou)?r?s?/.test(type)) {
+      retVal += amount * 60 * 60;
+    } else if (/m(in)?(ute)?s?/.test(type)) {
+      retVal += amount * 60;
+    } else if (/s(ec)?(ond)?s?/.test(type)) {
+      retVal += amount;
+    }
+  }
+  return retVal;
+}
+
+module.exports = {
+  getEvents,
+  getCommands,
+  multiplyBy,
+  clamp,
+  Color,
+  isSnowflake,
+  findUser,
+  findMember,
+  findRole,
+  findChannel,
+  parseDuration
+};
