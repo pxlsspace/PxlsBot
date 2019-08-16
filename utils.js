@@ -2,8 +2,9 @@ const fs = require('fs');
 const path = require('path');
 
 const { Command } = require('./command');
-
 const logger = require('./logger');
+
+const config = require('./config');
 
 /**
  * Returns a list of event objects from each JavaScript file in the specified
@@ -318,6 +319,31 @@ function parseDuration (input) {
   return retVal;
 }
 
+/**
+ * Returns the configured prefix for the guild, or the default one if none.
+ * @param {mariadb.Connection} connection The connection.
+ * @param {string} guildID The guild ID.
+ * @returns {Promise<string>} The prefix.
+ */
+async function getPrefix (connection, guildID) {
+  const results = await connection.query(`
+    SELECT
+      prefix
+    FROM
+      config
+    WHERE
+      guild_id = ?
+  `, [
+    guildID
+  ]);
+  await connection.end();
+  let prefix = config.prefix;
+  if (results.length > 0) {
+    prefix = results[0].prefix || prefix;
+  }
+  return prefix;
+}
+
 module.exports = {
   getEvents,
   getCommands,
@@ -329,5 +355,6 @@ module.exports = {
   findMember,
   findRole,
   findChannel,
-  parseDuration
+  parseDuration,
+  getPrefix
 };

@@ -1,9 +1,11 @@
-const { client } = require('../index');
+const { client, getDatabase } = require('../index');
 
 const logger = require('../logger');
-const { getCommands } = require('../utils');
+const { getCommands, getPrefix } = require('../utils');
 
 const config = require('../config');
+
+const database = getDatabase();
 
 /**
  * An array of commands, set during initialization.
@@ -26,8 +28,17 @@ async function execute (message) {
     return;
   }
   const args = message.content.split(' ');
-  if (args[0].toLowerCase().startsWith(config.prefix)) {
-    const cmd = args[0].toLowerCase().replace(config.prefix, '');
+  let prefix;
+  try {
+    const connection = await database.getConnection();
+    prefix = await getPrefix(connection, message.guild.id);
+    await connection.end();
+  } catch (err) {
+    logger.error('Could not get prefix from database.');
+    logger.fatal(err);
+  }
+  if (args[0].toLowerCase().startsWith(prefix)) {
+    const cmd = args[0].toLowerCase().replace(prefix, '');
     let match;
     for (let command of commands) {
       if (command.aliases.includes(cmd)) {
