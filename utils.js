@@ -326,20 +326,25 @@ function parseDuration (input) {
  * @returns {Promise<string>} The prefix.
  */
 async function getPrefix (connection, guildID) {
-  const results = await connection.query(`
-    SELECT
-      prefix
-    FROM
-      config
-    WHERE
-      guild_id = ?
-  `, [
-    guildID
-  ]);
-  await connection.end();
   let prefix = config.prefix;
-  if (results.length > 0) {
-    prefix = results[0].prefix || prefix;
+  try {
+    const results = await connection.query(`
+      SELECT
+        prefix
+      FROM
+        config
+      WHERE
+        guild_id = ?
+    `, [
+      guildID
+    ]);
+    if (results.length > 0) {
+      prefix = results[0].prefix || prefix;
+    }
+    await connection.end();
+  } catch (err) {
+    logger.error('Error getting prefix.');
+    logger.error(err);
   }
   return prefix;
 }

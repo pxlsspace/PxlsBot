@@ -10,8 +10,7 @@ async function execute (client, message) {
   embed.setDescription(`
     **Average Ping:** ${client.ping}ms
 
-    **Pings (most recent first):**
-    ${client.pings.map(ping => ' - ' + ping + ' ms\n')}
+    **Pings (most recent first):** ${client.pings.map(ping => ping + 'ms').join(', ')}
   `);
   const color = Color.lerp(client.ping / 1000, goodPingColor, badPingColor);
   embed.setColor([ color.red, color.green, color.blue ]);

@@ -1,9 +1,13 @@
 const Discord = require('discord.js');
 
 const { Command } = require('../command');
-const { getCommands, Color } = require('../utils');
+const { getDatabase } = require('../index');
+const logger = require('../logger');
+const { getCommands, Color, getPrefix } = require('../utils');
 
 const config = require('../config');
+
+const database = getDatabase();
 
 /**
  * An array of commands, set during initialization.
@@ -52,10 +56,13 @@ async function execute (client, message) {
       return message.channel.send('Could not a find command with the name or alias "' + args[1] + '".');
     }
     const permissions = new Discord.Permissions(command.permissions);
+    let prefix = '';
+    const connection = await database.getConnection();
+    prefix = await getPrefix(connection, message.guild.id);
     let helpText = `
       **Description:** ${command.description}
-      **Usage:** ${command.usage}
-      **Aliases:** [ '${command.aliases.join('\', \'')}' ]
+      **Usage:** \`${prefix}${command.usage}\`
+      **Aliases:** [ \`${command.aliases.join('` | `')}\` ]
       **Required Permissions:** ${command.permissions}
       ${permissions.toArray(false).map(v => ' - `' + v + '`\n')}
     `;
