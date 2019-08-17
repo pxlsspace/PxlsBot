@@ -19,8 +19,9 @@ function getTime (date = new Date()) {
 }
 
 /** Results the date and time in YYYY-MM-DD hh:mm:ss format. */
-function getDateTime (date = new Date()) {
-  return getDate(date) + ' ' + getTime(date);
+function getDateTime (date = new Date(), addTimezone) {
+  const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  return getDate(date) + ' ' + getTime(date) + (addTimezone ? ' ' + timezone : '');
 }
 
 /** Absolute path to the logs directory. */
