@@ -9,15 +9,18 @@ const pad = x => x < 10 ? '0' + x : x;
 const config = require('./config');
 
 /** Returns the date in YYYY-MM-DD format. */
-function getDate () {
-  const now = new Date();
-  return now.getFullYear() + '-' + pad(now.getMonth()) + '-' + pad(now.getDate());
+function getDate (date = new Date()) {
+  return date.getFullYear() + '-' + pad(date.getMonth()) + '-' + pad(date.getDate());
 }
 
 /** Returns the time in hh:mm:ss format. */
-function getTime () {
-  const now = new Date();
-  return pad(now.getHours()) + ':' + pad(now.getMinutes()) + ':' + pad(now.getSeconds());
+function getTime (date = new Date()) {
+  return pad(date.getHours()) + ':' + pad(date.getMinutes()) + ':' + pad(date.getSeconds());
+}
+
+/** Results the date and time in YYYY-MM-DD hh:mm:ss format. */
+function getDateTime (date = new Date()) {
+  return getDate(date) + ' ' + getTime(date);
 }
 
 /** Absolute path to the logs directory. */
@@ -115,4 +118,15 @@ const error = (...x) => log('ERROR', ...x);
 /** Logs at FATAL level and exits ungracefully. */
 const fatal = (...x) => { log('FATAL', ...x); process.exit(1); };
 
-module.exports = { initLogs, log, debug, info, warn, error, fatal };
+module.exports = {
+  getDate,
+  getTime,
+  getDateTime,
+  initLogs,
+  log,
+  debug,
+  info,
+  warn,
+  error,
+  fatal
+};
