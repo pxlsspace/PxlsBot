@@ -349,6 +349,25 @@ async function getPrefix (connection, guildID) {
   return prefix;
 }
 
+/**
+ * Truncates the specified text and appends chars to the end, if specified.
+ * @param {string} x The text to truncate.
+ * @param {number} max The max length of the text.
+ * @param {string} chars The characters to append if the length of the text
+ * exceeds max.
+ * @param {boolean} inward Whether chars should be appended inwards or outwards.
+ */
+function truncate (x, max, chars, inward) {
+  let retVal = x;
+  if (x.length > max) {
+    // If the specified text length is above the maximum
+    // append is the chars if it's specified
+    const append = typeof chars !== 'undefined' ? chars : '';
+    retVal = x.slice(0, max - (inward ? chars.length : 0)) + append;
+  }
+  return retVal;
+}
+
 module.exports = {
   getEvents,
   getCommands,
@@ -361,5 +380,6 @@ module.exports = {
   findRole,
   findChannel,
   parseDuration,
-  getPrefix
+  getPrefix,
+  truncate
 };
