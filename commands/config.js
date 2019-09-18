@@ -5,6 +5,8 @@ const { getDatabase } = require('../index');
 const logger = require('../logger');
 const { Color, getPrefix } = require('../utils');
 
+const { insertAuditLog } = require('./auditlog');
+
 const database = getDatabase();
 
 const columnWhitelist = [
@@ -120,6 +122,7 @@ async function execute (client, message) {
     }
     try {
       const connection = await database.getConnection();
+      await insertAuditLog(connection, message, command.id);
       await connection.query(`
         UPDATE
           config
@@ -142,6 +145,7 @@ async function execute (client, message) {
   } else if (action === 'create') {
     try {
       const connection = await database.getConnection();
+      await insertAuditLog(connection, message, command.id);
       await connection.query(`
         INSERT INTO
           config
@@ -156,8 +160,12 @@ async function execute (client, message) {
       embed.setDescription('Default configuration has been generated.');
       return message.channel.send(embed);
     } catch (err) {
-      logger.error(err);
-      return message.channel.send('Could not create config entry. Details have been logged.');
+      if (err.code === 'ER_DUP_ENTRY') {
+        return message.channel.send('Config entry already exists.');
+      } else {
+        logger.error(err.code);
+        return message.channel.send('Could not create config entry. Details have been logged.');
+      }
     }
   } else {
     return message.channel.send(`Unknown subcommand \`${action}\`.`);
