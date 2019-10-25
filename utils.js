@@ -28,7 +28,7 @@ async function getEvents (eventsDirectory) {
       const required = require(pathToFile);
       if (typeof required.execute === 'function') {
         events.push({
-          name: file,
+          name: required.name || file,
           init: required.init,
           execute: required.execute
         });

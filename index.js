@@ -56,12 +56,12 @@ async function main () {
   }
   logger.info('Initializing events...');
   events = await getEvents(config.eventsPath);
-  events.forEach(async event => {
+  for (const event of events) {
     if (typeof event.init === 'function') {
       await event.init();
     }
     client.on(event.name, event.execute);
-  });
+  }
   logger.info('Logging in...');
   await login();
 }
