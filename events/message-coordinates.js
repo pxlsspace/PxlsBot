@@ -11,8 +11,9 @@ async function execute (message) {
   let exec = coordsRegex.exec(message.content);
   if (exec) {
     let url = `https://pxls.space/#x=${exec[1]}&y=${exec[2]}`;
-    if (!isNaN(exec[3]))
-      url += `&scale=${Math.max(0.5,  parseFloat(exec[3]))}`;
+    if (!isNaN(exec[3])) {
+      url += `&scale=${Math.max(0.5, parseFloat(exec[3]))}`;
+    }
     return message.channel.send(`<${url}>`);
   }
 }
