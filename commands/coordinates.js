@@ -7,17 +7,11 @@ async function execute (client, message) {
   let url = false;
 
   if (!isNaN(args[0]) && !isNaN(args[1])) { // !coords 30 30 28
-    url = `https://pxls.space/#x=${args[0]}&y=${args[1]}`;
-    if (!isNaN(args[2])) {
-      url += `&scale=${args[2]}`;
-    }
+    url = `https://pxls.space/#x=${args[0]}&y=${args[1]}&scale=${isNaN(args[2]) ? '20' : args[2]}`;
   } else if (args[0].includes(',')) { // !coords (30, 30, 28)
     let exec = coordsRegex.exec(args[0]);
     if (exec && args[0].charAt(0) !== '(') { // abort if we have a paranthesis at pos 0 because the message-coordinate.js hook will handle it for us.
-      url = `https://pxls.space/#x=${exec[1]}&y=${exec[2]}`;
-      if (!isNaN(exec[3])) {
-        url += `&scale=${Math.max(0.5, parseFloat(exec[3]))}`;
-      }
+      url = `https://pxls.space/#x=${exec[1]}&y=${exec[2]}&scale=${isNaN(exec[3]) ? '20' : exec[3]}`;
     }
   }
 
