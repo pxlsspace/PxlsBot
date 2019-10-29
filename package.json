@@ -5,7 +5,7 @@
   "main": "index.js",
   "scripts": {
     "start": "node .",
-    "test": "./node_modules/semistandard/bin/cmd.js"
+    "test": "node ./node_modules/semistandard/bin/cmd.js"
   },
   "repository": {
     "type": "git",
