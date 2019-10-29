@@ -4,7 +4,7 @@ const coordsRegex = /\(?([0-9]+)[., ]{1,2}([0-9]+)[., ]{0,2}([0-9]+)?x?\)?/i;
 
 async function execute (client, message) {
   const args = message.content.split(' ').slice(1);
-  if (!args.length) return Promise.resolve();
+  if (!args.length) return;
 
   let coords = false;
   if (args.length > 1 && validateCoordinates(args[0], args[1], args[2])) {
@@ -24,7 +24,7 @@ async function execute (client, message) {
     }
   }
 
-  if (coords === false) return Promise.resolve();
+  if (coords === false) return;
   return message.channel.send(`<https://pxls.space/#x=${coords.x}&y=${coords.y}&scale=${coords.scale != null ? coords.scale : 20}>`);
 }
 
