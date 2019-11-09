@@ -1,17 +1,24 @@
-const Discord = require('discord.js');
+import * as Discord from 'discord.js';
+import * as mariadb from 'mariadb';
 
-const { Command } = require('../command');
-const { getDatabase } = require('../index');
-const logger = require('../logger');
-const { getCommands, Color, truncate } = require('../utils');
+import { getDatabase } from '../index';
+import CommandBuilder from '../command';
+import * as logger from '../logger';
+import { getCommands, Color, truncate } from '../utils';
 
-const config = require('../config');
+const config = require('../../config');
 
 let database = getDatabase();
 
-let commands;
+let commands: CommandBuilder[];
 
-async function insertAuditLog (connection, message, commandID) {
+/**
+ * Inserts an audit log entry.
+ * @param {mariadb.Connection} connection The database connection.
+ * @param {Discord.Message} message The message.
+ * @param {string} commandID The command ID.
+ */
+export async function insertAuditLog(connection: mariadb.Connection, message: Discord.Message, commandID: string) {
   try {
     await connection.query(`
       INSERT INTO
@@ -31,7 +38,7 @@ async function insertAuditLog (connection, message, commandID) {
   }
 }
 
-async function init () {
+async function init() {
   commands = await getCommands(config.commandsPath);
   try {
     const connection = await database.getConnection();
@@ -52,10 +59,10 @@ async function init () {
   }
 }
 
-async function execute (client, message) {
+async function execute(client: Discord.Client, message: Discord.Message) {
   const args = message.content.split(' ');
   const embed = new Discord.RichEmbed();
-  embed.setColor(Color.rainbow.skyblue.toArray());
+  embed.setColor(Color.rainbow.skyblue.toColorResolvable());
   if (args.length < 2) {
     try {
       const connection = await database.getConnection();
@@ -74,13 +81,11 @@ async function execute (client, message) {
         return message.channel.send('This server has no audit log entries.');
       }
       const auditLogs = results;
-      const formattedArr = [];
-      for (let auditLog of auditLogs) {
+      const formattedArr: string[] = [];
+      for (const auditLog of auditLogs) {
         const user = await client.fetchUser(auditLog.user_id);
-        let command = commands.find(command => {
-          return command.id === auditLog.command_id;
-        });
-        const commandID = typeof command === 'undefined' ? auditLog.command_id : command.id;
+        const command = commands.find(cmd => cmd.id === auditLog.command_id);
+        const commandID = command.id ?? auditLog.command_id;
         const timestamp = logger.getDateTime(auditLog.timestamp, true);
         formattedArr.push(`
           __**Audit Log #${auditLog.id}:**__ \`${commandID}\`
@@ -90,7 +95,7 @@ async function execute (client, message) {
         `.trim());
       }
 
-      const messageBuffer = [[]];
+      const messageBuffer: [string[]] = [[]];
       let buffer = 0;
       for (let i = 0; i < formattedArr.length; i++) {
         const formattedStr = formattedArr[i];
@@ -101,7 +106,7 @@ async function execute (client, message) {
         messageBuffer[messageBuffer.length - 1].push(formattedStr + '\n');
         buffer += formattedStr.length;
       }
-      for (let formattedStr of messageBuffer) {
+      for (const formattedStr of messageBuffer) {
         embed.setDescription(formattedStr);
         message.channel.send(embed);
       }
@@ -111,7 +116,7 @@ async function execute (client, message) {
       return message.channel.send('Could not display audit log. Details have been logged.');
     }
   }
-  if (isNaN(args[1])) {
+  if (isNaN(Number(args[1]))) {
     return message.channel.send('You must specify a valid audit log ID - not a number.');
   }
   const id = parseInt(args[1]);
@@ -135,13 +140,11 @@ async function execute (client, message) {
     }
     const auditLog = results[0];
     const user = await client.fetchUser(auditLog.user_id);
-    let command = commands.find(command => {
-      return command.id === auditLog.command_id;
-    });
-    const commandID = typeof command === 'undefined' ? auditLog.command_id : command.id;
+    const command = commands.find(cmd => cmd.id === auditLog.command_id);
+    const commandID = command.id ?? auditLog.command_id;
     embed.setTitle(`Audit Log #${id}`);
     embed.setAuthor(`${user.tag} (${user.id})`, user.displayAvatarURL);
-    embed.addField('Command', '`' + (commandID) + '`');
+    embed.addField('Command', `\`${commandID}\``);
     embed.addField('Message Text', truncate('```\n' + auditLog.message + '```', 1024, ' ...', true));
     embed.setTimestamp(auditLog.timestamp);
     return message.channel.send(embed);
@@ -152,17 +155,14 @@ async function execute (client, message) {
   }
 }
 
-const command = new Command(
-  'auditlog',
-  'Audit Log',
-  'Utility',
-  'Displays actions taken with the bot.',
-  'auditlog [ id ]',
-  [ 'auditlog', 'auditlogs' ],
-  true,
-  Discord.Permissions.FLAGS.MANAGE_GUILD
-);
-command.init = init;
-command.execute = execute;
-
-module.exports = { command, insertAuditLog };
+export const command = new CommandBuilder()
+  .setID('auditlog')
+  .setName('Audit Log')
+  .setCategory('Utility')
+  .setDescription('Displays actions taken with the bot.')
+  .setUsage('auditlog [ id ]')
+  .setAliases([ 'al', 'audit', 'auditlog', 'auditlogs' ])
+  .setServerOnly(true)
+  .setPermissions(Discord.Permissions.FLAGS.MANAGE_GUILD)
+  .setInit(init)
+  .setExecute(execute);

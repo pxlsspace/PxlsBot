@@ -1,11 +1,11 @@
-const Discord = require('discord.js');
+import * as Discord from 'discord.js';
 
-const { Command } = require('../command');
-const { getDatabase } = require('../index');
-const logger = require('../logger');
-const { Color, getPrefix } = require('../utils');
+import { getDatabase } from '../index';
+import CommandBuilder from '../command';
+import * as logger from '../logger';
+import { Color, getPrefix } from '../utils';
 
-const { insertAuditLog } = require('./auditlog');
+import { insertAuditLog } from './auditlog';
 
 const database = getDatabase();
 
@@ -13,7 +13,7 @@ const columnWhitelist = [
   'prefix'
 ];
 
-async function init () {
+async function init() {
   try {
     const connection = await database.getConnection();
     await connection.query(`
@@ -31,15 +31,15 @@ async function init () {
   }
 }
 
-async function execute (client, message) {
+async function execute(client: Discord.Client, message: Discord.Message) {
   const args = message.content.split(' ');
   const embed = new Discord.RichEmbed();
-  embed.setColor(Color.rainbow.skyblue.toArray());
+  embed.setColor(Color.rainbow.skyblue.toColorResolvable());
   if (args.length < 2) {
     // (prefix)config
     try {
       const connection = await database.getConnection();
-      const results = await connection.query(`
+      const results: {}[] = await connection.query(`
         SELECT
           *
         FROM
@@ -78,7 +78,7 @@ async function execute (client, message) {
     }
     try {
       const connection = await database.getConnection();
-      const results = await connection.query(`
+      const results: {}[] = await connection.query(`
         SELECT
           *
         FROM
@@ -117,8 +117,9 @@ async function execute (client, message) {
     if (args.length < 4) {
       return message.channel.send('You must specify a value.');
     }
-    if (!isNaN(args[3])) {
-      args[3] = parseFloat(args[3]);
+    let setVal: any = args[3];
+    if (!isNaN(Number(args[3]))) {
+      setVal = parseFloat(args[3]);
     }
     try {
       const connection = await database.getConnection();
@@ -131,12 +132,12 @@ async function execute (client, message) {
         WHERE
           guild_id = ?
       `, [
-        args[3],
+        setVal,
         message.guild.id
       ]);
       await connection.end();
-      embed.setColor(Color.rainbow.green.toArray());
-      embed.setDescription(`Config key \`${args[2]}\` has been set to \`${args[3]}\`.`);
+      embed.setColor(Color.rainbow.green.toColorResolvable());
+      embed.setDescription(`Config key \`${args[2]}\` has been set to \`${setVal}\`.`);
       return message.channel.send(embed);
     } catch (err) {
       logger.error(err);
@@ -156,7 +157,7 @@ async function execute (client, message) {
         message.guild.id
       ]);
       await connection.end();
-      embed.setColor(Color.rainbow.green.toArray());
+      embed.setColor(Color.rainbow.green.toColorResolvable());
       embed.setDescription('Default configuration has been generated.');
       return message.channel.send(embed);
     } catch (err) {
@@ -172,17 +173,14 @@ async function execute (client, message) {
   }
 }
 
-const command = new Command(
-  'config',
-  'Configure',
-  'Utility',
-  'Configures bot settings for the guild.',
-  'config [ get (key) | set (key) (value) ]',
-  [ 'config', 'configure' ],
-  true,
-  Discord.Permissions.FLAGS.MANAGE_GUILD
-);
-command.init = init;
-command.execute = execute;
-
-module.exports = { command };
+export const command = new CommandBuilder()
+  .setID('config')
+  .setName('Configure')
+  .setCategory('Utility')
+  .setDescription('Configures bot settings for the guild.')
+  .setUsage('config [ get (key) | set (key) (value) ]')
+  .setAliases([ 'config', 'configure' ])
+  .setServerOnly(true)
+  .setPermissions(Discord.Permissions.FLAGS.MANAGE_GUILD)
+  .setInit(init)
+  .setExecute(execute);

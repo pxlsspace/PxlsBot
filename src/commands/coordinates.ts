@@ -1,12 +1,18 @@
-const { Command } = require('../command');
+import * as Discord from 'discord.js';
+
+import CommandBuilder from '../command';
 
 const coordsRegex = /\(?([0-9]+)[., ]{1,2}([0-9]+)[., ]{0,2}([0-9]+)?x?\)?/i;
 
-async function execute (client, message) {
+async function execute(client: Discord.Client, message: Discord.Message) {
   const args = message.content.split(' ').slice(1);
   if (!args.length) return;
 
-  let coords = false;
+  let coords: {
+    x: string | number,
+    y: string | number,
+    scale: string | number
+  };
   if (args.length > 1 && validateCoordinates(args[0], args[1], args[2])) {
     coords = {
       x: args[0],
@@ -15,6 +21,7 @@ async function execute (client, message) {
     };
   } else if (args[0].includes(',') && args[0].charAt(0) !== '(') { // abort if we have a paranthesis at pos 0 because the message-coordinate.js hook will handle it for us.
     let exec = coordsRegex.exec(args[0]);
+    if (exec == null) return;
     if (validateCoordinates(exec[1], exec[2], exec[3])) {
       coords = {
         x: exec[1],
@@ -24,21 +31,20 @@ async function execute (client, message) {
     }
   }
 
-  if (coords === false) return;
-  return message.channel.send(`<https://pxls.space/#x=${coords.x}&y=${coords.y}&scale=${coords.scale != null ? coords.scale : 20}>`);
+  if (typeof coords !== 'undefined')
+    return message.channel.send(`<https://pxls.space/#x=${coords.x}&y=${coords.y}&scale=${coords.scale ?? 20}>`);
 }
 
-const command = new Command(
-  'coordinates',
-  'Coordinates',
-  'Utility',
-  'Prints pxls coordinates',
-  'coordinates x y [zoom]',
-  [ 'coords' ],
-  false,
-  0
-);
-command.execute = execute;
+export const command = new CommandBuilder()
+  .setID('coordinates')
+  .setName('Coordinates')
+  .setCategory('Utility')
+  .setDescription('Prints Pxls coordinates')
+  .setUsage('coords x y [zoom]')
+  .setAliases([ 'coords', 'coordinates' ])
+  .setServerOnly(false)
+  .setPermissions(0)
+  .setExecute(execute);
 
 /**
  * Verifies that the given x/y/scale are finite and <= $maximum
@@ -48,8 +54,9 @@ command.execute = execute;
  * @param {number} [maximum=1000000] The maximum intval that x/y/scale can be
  * @returns {boolean} Whether or not the arguments are valid
  */
-function validateCoordinates (x, y, scale = 20, maximum = 1000000) {
-  return ((isFinite(x) && isFinite(y) && isFinite(scale)) && parseFloat(x) <= maximum && parseFloat(y) <= maximum && parseFloat(scale) <= maximum);
+export function validateCoordinates (x, y, scale: string | number, maximum = 1000000): boolean {
+  if (Number.isNaN(Number(scale))) {
+    scale = 20;
+  }
+  return ((isFinite(x) && isFinite(y) && scale) && parseFloat(x) <= maximum && parseFloat(y) <= maximum && scale <= maximum);
 }
-
-module.exports = { command, validateCoordinates };

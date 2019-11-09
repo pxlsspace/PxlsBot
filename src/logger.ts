@@ -1,25 +1,32 @@
-const fs = require('fs');
-const path = require('path');
-const { format } = require('util');
+import * as fs from 'fs';
+import * as path from 'path';
+import { format } from 'util';
 
-require('colors');
+import 'colors';
 
-const pad = x => x < 10 ? '0' + x : x;
+/**
+ * Adds a 0 to the beginning of the number if it's less than 10.
+ * @param {number} x The number to pad
+ * @returns {string} The padded number.
+ */
+function pad(x: number): string {
+  return x < 10 ? '0' + x : x.toString();
+}
 
-const config = require('./config');
+const config = require('../config');
 
 /** Returns the date in YYYY-MM-DD format. */
-function getDate (date = new Date()) {
+export function getDate(date: Date = new Date()): string {
   return date.getFullYear() + '-' + pad(date.getMonth()) + '-' + pad(date.getDate());
 }
 
 /** Returns the time in hh:mm:ss format. */
-function getTime (date = new Date()) {
+export function getTime(date: Date = new Date()): string {
   return pad(date.getHours()) + ':' + pad(date.getMinutes()) + ':' + pad(date.getSeconds());
 }
 
 /** Results the date and time in YYYY-MM-DD hh:mm:ss format. */
-function getDateTime (date = new Date(), addTimezone) {
+export function getDateTime(date: Date = new Date(), addTimezone: boolean): string {
   const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
   return getDate(date) + ' ' + getTime(date) + (addTimezone ? ' ' + timezone : '');
 }
@@ -48,7 +55,7 @@ const cannotSaveToFile = () => {
  * If config.logging.saveToFile is true, logs will be saved to the file system
  * at ./logs/{YYYY-MM-DD}.log.
  */
-async function initLogs () {
+export async function initLogs() {
   if (!config.logging.saveToFile) {
     return;
   }
@@ -76,7 +83,7 @@ const Levels = Object.freeze({
  * @param {string} level The logging level.
  * @param {...any} x The content to log.
  */
-function log (level, ...x) {
+export function log(level: string, ...x: any[]) {
   // If log is called without the level, move the thing being logged over to x
   // and default the level to INFO.
   if (typeof Levels[level.toUpperCase()] === 'undefined') {
@@ -90,7 +97,7 @@ function log (level, ...x) {
   const date = getDate();
   // Example: [2019-08-01 14:00:00]
   const dateTime = '[' + date + ' ' + getTime() + ']';
-  const minimumLevel = config.logging.level;
+  const minimumLevel: string = config.logging.level;
   const levelKeys = Object.keys(Levels);
   if (levelKeys.indexOf(level) >= levelKeys.indexOf(minimumLevel)) {
     console.log(dateTime.yellow, Levels[level] + ':', ...x);
@@ -109,25 +116,12 @@ function log (level, ...x) {
 }
 
 /** Logs at DEBUG level. */
-const debug = (...x) => log('DEBUG', ...x);
+export const debug = (...x: any[]) => log('DEBUG', ...x);
 /** Logs at INFO level. */
-const info = (...x) => log('INFO', ...x);
+export const info = (...x: any[]) => log('INFO', ...x);
 /** Logs at WARN level. */
-const warn = (...x) => log('WARN', ...x);
+export const warn = (...x: any[]) => log('WARN', ...x);
 /** Logs at ERROR level. */
-const error = (...x) => log('ERROR', ...x);
+export const error = (...x: any[]) => log('ERROR', ...x);
 /** Logs at FATAL level and exits ungracefully. */
-const fatal = (...x) => { log('FATAL', ...x); process.exit(1); };
-
-module.exports = {
-  getDate,
-  getTime,
-  getDateTime,
-  initLogs,
-  log,
-  debug,
-  info,
-  warn,
-  error,
-  fatal
-};
+export const fatal = (...x: any[]) => { log('FATAL', ...x); process.exit(1); };

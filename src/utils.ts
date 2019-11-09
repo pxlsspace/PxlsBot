@@ -1,28 +1,36 @@
-const fs = require('fs');
-const path = require('path');
+import * as fs from 'fs';
+import * as path from 'path';
+import * as Discord from 'discord.js';
+import * as mariadb from 'mariadb';
 
-const { Command } = require('./command');
-const logger = require('./logger');
+import CommandBuilder from './command';
+import * as logger from './logger';
 
-const config = require('./config');
+const config = require('../config');
 
 /**
  * Returns a list of event objects from each JavaScript file in the specified
  * directory.
- * @param {string[]} eventsDirectory The event directory.
- * @returns {object[]} The events.
+ * @param {string} eventsDirectory The event directory.
+ * @returns {Promise<{}[]>} The events.
  */
-async function getEvents (eventsDirectory) {
+export async function getEvents(eventsDirectory: string): Promise<{
+  name: string;
+  init: Function;
+  execute: Function;
+}[]> {
   eventsDirectory = path.join(__dirname, eventsDirectory);
-  // let files;
-  let files = await fs.promises.readdir(eventsDirectory).catch(err => {
+  let files: string[]
+  try {
+    files = await fs.promises.readdir(eventsDirectory);
+  } catch (err) {
     logger.error('Could not read one or more files from ' + eventsDirectory + '.');
     logger.fatal(err);
-  });
-  files = files.filter(file => file.endsWith('.js'));
+  }
+  files = files.filter(file => file.endsWith('.ts'));
   let events = [];
   for (let file of files) {
-    file = file.replace('.js', '');
+    file = file.replace('.ts', '');
     const pathToFile = path.join(eventsDirectory, file);
     try {
       const required = require(pathToFile);
@@ -42,12 +50,12 @@ async function getEvents (eventsDirectory) {
 }
 
 /**
- * Returns a list of Command instances from each JavaScript file in the
+ * Returns a list of CommandBuilder instances from each JavaScript file in the
  * specified directory.
  * @param {string} commandsDirectory The command directory.
- * @returns {Command[]} The commands.
+ * @returns {Promise<CommandBuilder[]>} The commands.
  */
-async function getCommands (commandsDirectory) {
+export async function getCommands(commandsDirectory: string): Promise<CommandBuilder[]> {
   commandsDirectory = path.join(__dirname, commandsDirectory);
   let files;
   try {
@@ -56,13 +64,13 @@ async function getCommands (commandsDirectory) {
     logger.error('Could not read one or more files from ' + commandsDirectory + '.');
     logger.fatal(err);
   }
-  files = files.filter(file => file.endsWith('.js'));
+  files = files.filter(file => file.endsWith('.ts'));
   let commands = [];
   for (let file of files) {
     const pathToFile = path.join(commandsDirectory, file);
     try {
       const required = require(pathToFile);
-      if (required.command instanceof Command) {
+      if (required.command instanceof CommandBuilder) {
         commands.push(required.command);
       }
     } catch (err) {
@@ -77,9 +85,10 @@ async function getCommands (commandsDirectory) {
  * Multiplies the specified numbers.
  * @param {number} x The number to multiply by.
  * @param  {...number} values The numbers to multiply.
+ * @return {number[]} The multiplied numbers.
  */
-function multiplyBy (x, ...values) {
-  let multiplied = [];
+export function multiplyBy(x: number, ...values: number[]): number[] {
+  let multiplied: number[] = [];
   values.forEach(value => multiplied.push(value * x));
   return multiplied;
 }
@@ -89,12 +98,20 @@ function multiplyBy (x, ...values) {
  * @param {number} x The number to clamp.
  * @param {number} min The minimum value.
  * @param {number} max The maximum value.
+ * @returns {number} The clamped number.
  */
-function clamp (x, min, max) {
+export function clamp(x: number, min: number, max: number): number {
   return x < min ? min : x > max ? max : x;
 }
 
-class Color {
+export class Color {
+  public red: number;
+  public green: number;
+  public blue: number;
+  public alpha: number;
+
+  public static rainbow: {[key: string]: Color};
+
   /**
    * Create a new Color.
    * Color values must be from 0 to 255.
@@ -105,7 +122,7 @@ class Color {
    * @param {number} alpha The alpha color value.
    * Defaults to 255 if unspecified.
    */
-  constructor (red, green, blue, alpha = 255) {
+  constructor(red: number, green: number, blue: number, alpha: number = 255) {
     this.red = red;
     this.green = green;
     this.blue = blue;
@@ -113,13 +130,13 @@ class Color {
   }
 
   /**
-   * Returns the color value of x between from and to.
+   * Calculates the color value of x between from and to.
    * @param {number} x The current value, between 0 and 1.
    * @param {Color} min The minimum color.
    * @param {Color} max The maximum color.
    * @returns {Color} The color value.
    */
-  static lerp (x, min, max) {
+  static lerp(x: number, min: Color, max: Color): Color {
     const rangeR = clamp(min.red + ((max.red - min.red) * x), 0, 255);
     const rangeG = clamp(min.green + ((max.green - min.green) * x), 0, 255);
     const rangeB = clamp(min.blue + ((max.blue - min.blue) * x), 0, 255);
@@ -128,24 +145,25 @@ class Color {
   }
 
   /**
-   * Returns the sum of this color and the other color.
+   * Calculates the sum of this color and the other color.
    * @param {Color} other The other color.
+   * @param {number?} withAlpha The output alpha.
    * @returns {Color} The summed color.
    * @see {@link add}
    */
-  add (other, withAlpha) {
+  add(other: Color, withAlpha?: number): Color {
     return Color.add(this, other, withAlpha);
   }
 
   /**
-   * Returns the sum of the first and second color.
+   * Calculates the sum of the first and second color.
    * @param {Color} first The first color.
    * @param {Color} second The second color.
-   * @param {number} withAlpha The output alpha.
+   * @param {number?} withAlpha The output alpha.
    * Set this param if summing alpha values is undesired.
    * @returns {Color} The summed color.
    */
-  static add (first, second, withAlpha) {
+  static add(first: Color, second: Color, withAlpha?: number): Color {
     const red = clamp(first.red + second.red, 0, 255);
     const green = clamp(first.green + second.green, 0, 255);
     const blue = clamp(first.blue + second.blue, 0, 255);
@@ -157,29 +175,30 @@ class Color {
   }
 
   /**
-   * Returns the difference of this color and the other color.
+   * Calculates the difference of this color and the other color.
    * @param {Color} other The other color.
+   * @param {number?} withAlpha The output alpha.
    * @returns {Color} The differed color.
    * @see {@link subtract}
    */
-  subtract (other, withAlpha) {
+  subtract(other: Color, withAlpha?: number): Color {
     return Color.subtract(this, other, withAlpha);
   }
 
   /**
-  * Returns the difference of the first and second color.
+  * Calculates the difference of the first and second color.
   * @param {Color} first The first color.
   * @param {Color} second The second color.
-  * @param {number} withAlpha The output alpha.
+  * @param {number?} withAlpha The output alpha.
   * Set this param if summing alpha values is undesired.
   * @returns {Color} The differed color.
   */
-  static subtract (first, second, withAlpha) {
+  static subtract(first: Color, second: Color, withAlpha?: number): Color {
     const red = clamp(first.red - second.red, 0, 255);
     const green = clamp(first.green - second.green, 0, 255);
     const blue = clamp(first.blue - second.blue, 0, 255);
     const alpha = clamp(first.alpha - second.alpha, 0, 255);
-    if (!withAlpha) {
+    if (typeof withAlpha === 'undefined') {
       return new Color(red, green, blue);
     }
     return new Color(red, green, blue, alpha);
@@ -187,10 +206,19 @@ class Color {
 
   /**
    * Returns the color values in an array.
+   * @param {boolean} withAlpha Whether to return with the alpha or not.
    * @returns {number[]} The color values.
    */
-  toArray () {
-    return [ this.red, this.green, this.blue, this.alpha ];
+  toArray(): [ number, number, number, number ] {
+      return [ this.red, this.green, this.blue, this.alpha ];
+  }
+
+  /**
+   * Returns the color values in a Discord.ColorResolvable array.
+   * @returns {number[]} The color values.
+   */
+  toColorResolvable(): [ number, number, number ] {
+    return [ this.red, this.green, this.blue ];
   }
 }
 
@@ -210,43 +238,42 @@ Color.rainbow = {
 };
 
 /**
- * Returns whether or not the input snowflake is valid.
  * @param {string} input The snowflake.
- * @returns {boolean}
+ * @returns {boolean} Whether the input snowflake is valid or not.
  */
-function isSnowflake (input) {
-  return !isNaN(input) && input.length === 18;
+export function isSnowflake(input: string): boolean {
+  return !isNaN(Number(input)) && input.length === 18;
 }
 
 /**
  * Finds a user, member, role, or channel by the specified input.
+ * @param {string} type The type.
  * @param {Discord.Client} client The client.
  * @param {Discord.Message} message The message.
  * @param {string} input The input.
- * @param {string} type The type.
- * @returns {Discord.User | Discord.GuildMember | Discord.Role | Discord.TextChannel | false}
+ * @returns {Discord.User | Discord.GuildMember | Discord.Role | Discord.TextChannel | false} The found user, member, role, or channel.
  */
-async function find (client, message, input, type) {
+export async function find(type: string, client: Discord.Client, message: Discord.Message, input: string): Promise<Discord.User | Discord.GuildMember | Discord.Role | Discord.TextChannel | false> {
   let retVal;
   if (type === 'user') {
     if (isSnowflake(input)) {
       // Attempt to fetch the user by their ID
-      retVal = await client.fetchUser(input).catch(false);
+      retVal = await client.fetchUser(input).catch(() => false);
     } else {
       // Attempt to find the user by their tag
-      retVal = await client.users.find(v => {
+      retVal = client.users.find(v => {
         return v.tag.toLowerCase() === input.toLowerCase();
-      }).catch(false);
+      });
     }
   } else if (type === 'member') {
     if (isSnowflake(input)) {
       // Attempt to fetch the member by their ID
-      retVal = await message.guild.fetchMember(input).catch(false);
+      retVal = await message.guild.fetchMember(input).catch(() => false);
     } else {
       // Attempt to fetch the member by their display name or username
-      retVal = await message.guild.members.find(v => {
+      retVal = message.guild.members.find(v => {
         return v.displayName.toLowerCase() === input.toLowerCase();
-      }).catch(false);
+      });
     }
   } else if (type === 'role') {
     if (isSnowflake(input)) {
@@ -274,50 +301,13 @@ async function find (client, message, input, type) {
 }
 
 /** Finds a user by the input. */
-const findUser = (...x) => find(...x, 'user');
+export const findUser = (...x: [Discord.Client, Discord.Message, string]) => find('user', ...x);
 /** Finds a member by the input. */
-const findMember = (...x) => find(...x, 'member');
+export const findMember = (...x: [Discord.Client, Discord.Message, string]) => find('member', ...x);
 /** Finds a role by the input. */
-const findRole = (...x) => find(...x, 'role');
+export const findRole = (...x: [Discord.Client, Discord.Message, string]) => find('role', ...x);
 /** Finds a channel by the input. */
-const findChannel = (...x) => find(...x, 'channel');
-
-/**
- * Returns the seconds parsed from the input duration string.
- * @param {string | null} input The duration or null if it could not be parsed.
- * @returns {number}
- */
-function parseDuration (input) {
-  if (!isNaN(input)) {
-    // If a plain number is specified, return that in minutes.
-    return parseInt(input) * 60;
-  }
-  const regex = /([\d]+) ?([a-z]+)/;
-  const matches = input.match(new RegExp(regex, 'g'));
-  if (matches == null) {
-    return null;
-  }
-  let retVal = 0;
-  for (let match of matches) {
-    const _match = match.match(regex);
-    const amount = parseInt(_match[1]);
-    const type = _match[2].toLowerCase();
-    if (/mo(nth)?s?/.test(type)) {
-      retVal += amount * 60 * 60 * 24 * (365 / 12);
-    } else if (/w(ee)?k?s?/.test(type)) {
-      retVal += amount * 60 * 60 * 24 * 7;
-    } else if (/d(ay)?s?/.test(type)) {
-      retVal += amount * 60 * 60 * 24;
-    } else if (/h(ou)?r?s?/.test(type)) {
-      retVal += amount * 60 * 60;
-    } else if (/m(in)?(ute)?s?/.test(type)) {
-      retVal += amount * 60;
-    } else if (/s(ec)?(ond)?s?/.test(type)) {
-      retVal += amount;
-    }
-  }
-  return retVal;
-}
+export const findChannel = (...x: [Discord.Client, Discord.Message, string]) => find('channel', ...x);
 
 /**
  * Returns the configured prefix for the guild, or the default one if none.
@@ -325,7 +315,7 @@ function parseDuration (input) {
  * @param {string} guildID The guild ID.
  * @returns {Promise<string>} The prefix.
  */
-async function getPrefix (connection, guildID) {
+export async function getPrefix(connection: mariadb.Connection, guildID: string): Promise<string> {
   let prefix = config.prefix;
   try {
     const results = await connection.query(`
@@ -353,11 +343,11 @@ async function getPrefix (connection, guildID) {
  * Truncates the specified text and appends chars to the end, if specified.
  * @param {string} x The text to truncate.
  * @param {number} max The max length of the text.
- * @param {string} chars The characters to append if the length of the text
- * exceeds max.
+ * @param {string} chars The characters to append if the length of the text exceeds max.
  * @param {boolean} inward Whether chars should be appended inwards or outwards.
+ * @return {string} The truncated text.
  */
-function truncate (x, max, chars, inward) {
+export function truncate(x: string, max: number, chars: string, inward: boolean): string {
   let retVal = x;
   if (x.length > max) {
     // If the specified text length is above the maximum
@@ -367,19 +357,3 @@ function truncate (x, max, chars, inward) {
   }
   return retVal;
 }
-
-module.exports = {
-  getEvents,
-  getCommands,
-  multiplyBy,
-  clamp,
-  Color,
-  isSnowflake,
-  findUser,
-  findMember,
-  findRole,
-  findChannel,
-  parseDuration,
-  getPrefix,
-  truncate
-};

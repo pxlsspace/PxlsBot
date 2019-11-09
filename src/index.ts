@@ -1,24 +1,24 @@
-const Discord = require('discord.js');
-const client = new Discord.Client();
+import * as Discord from 'discord.js';
+export const client = new Discord.Client();
 
-const mariadb = require('mariadb');
+import * as mariadb from 'mariadb';
 
-const logger = require('./logger');
-const { getEvents } = require('./utils');
+import * as logger from './logger';
+import { getEvents } from './utils';
 
-const config = require('./config');
+const config = require('../config');
 
 /**
  * A database connection pool, set during initialization.
  * @property {mariadb.Pool}
  */
-let database;
+let database: mariadb.Pool;
 
 /**
  * Gets the database pool.
  * @returns {mariadb.Pool}
  */
-function getDatabase () {
+export function getDatabase(): mariadb.Pool {
   return database;
 }
 
@@ -26,10 +26,14 @@ function getDatabase () {
  * An array of event objects, set during initialization.
  * @property {object[]} - The events objects.
  */
-let events;
+export let events: {
+  name: string,
+  init: Function,
+  execute: Function
+}[];
 
 /** Attempts to log into Discord. */
-async function login () {
+export async function login() {
   await client.login(config.token).catch(err => {
     logger.error(err);
     exit(1);
@@ -37,7 +41,7 @@ async function login () {
 }
 
 /** Initializes everything. */
-async function main () {
+async function main() {
   await logger.initLogs();
   logger.info('PxlsBot 1.0.0');
   if (typeof config.token === 'undefined') {
@@ -57,9 +61,7 @@ async function main () {
   logger.info('Initializing events...');
   events = await getEvents(config.eventsPath);
   for (const event of events) {
-    if (typeof event.init === 'function') {
-      await event.init();
-    }
+    if (typeof event.init !== 'undefined') await event.init();
     client.on(event.name, event.execute);
   }
   logger.info('Logging in...');
@@ -67,7 +69,7 @@ async function main () {
 }
 
 /** Attempts to gracefully exit. */
-async function exit (code = 0) {
+export async function exit(code = 0) {
   logger.info('Exiting...');
   await client.destroy().catch(() => {
     logger.error('Could not gracefully destroy client.');
@@ -76,14 +78,6 @@ async function exit (code = 0) {
 }
 
 // Handles CTRL-C
-process.on('SIGINT', exit);
+process.on('SIGINT', () => exit());
 
 main();
-
-module.exports = {
-  client,
-  getDatabase,
-  events,
-  login,
-  exit
-};

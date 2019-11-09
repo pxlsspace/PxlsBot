@@ -1,9 +1,12 @@
-const { client, getDatabase } = require('../index');
+import * as Discord from 'discord.js';
 
-const logger = require('../logger');
-const { getCommands, getPrefix } = require('../utils');
+import { client, getDatabase } from '../index';
+import * as logger from '../logger';
+import { getCommands, getPrefix } from '../utils';
 
-const config = require('../config');
+import Command from '../command';
+
+const config = require('../../config');
 
 const database = getDatabase();
 
@@ -11,24 +14,28 @@ const database = getDatabase();
  * An array of commands, set during initialization.
  * @property {Command[]} commands The commands.
  */
-let commands;
+let commands: Command[];
 
-async function init () {
+export const name = 'message';
+
+export async function init() {
   logger.info('Initializing commands...');
   commands = await getCommands(config.commandsPath);
-  commands.forEach(command => command.init());
+  commands.forEach(async command => {
+    if (typeof command.init !== 'undefined') await command.init();
+  });
 }
 
 /**
  * Executed whenever a message is received over the WebSocket.
  * @param {Discord.Message} message The message.
  */
-async function execute (message) {
+export async function execute(message: Discord.Message) {
   if (message.author.bot) {
     return;
   }
   const args = message.content.split(' ');
-  let prefix;
+  let prefix: string;
   try {
     const connection = await database.getConnection();
     prefix = await getPrefix(connection, message.guild.id);
@@ -39,7 +46,7 @@ async function execute (message) {
   }
   if (args[0].toLowerCase().startsWith(prefix)) {
     const cmd = args[0].toLowerCase().replace(prefix, '');
-    let match;
+    let match: Command;
     for (let command of commands) {
       if (command.aliases.includes(cmd)) {
         match = command;
@@ -59,5 +66,3 @@ async function execute (message) {
     match.execute(client, message);
   }
 }
-
-module.exports = { init, execute };
