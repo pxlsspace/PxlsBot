@@ -110,7 +110,23 @@ export class Color {
   public blue: number;
   public alpha: number;
 
-  public static rainbow: {[key: string]: Color};
+  public static rainbow = {
+    white: new Color(255, 255, 255),
+    gray: new Color(127, 127, 127),
+    black: new Color(0, 0, 0),
+    red: new Color(255, 0, 0),
+    orange: new Color(255, 127, 0),
+    yellow: new Color(255, 255, 0),
+    yellowgreen: new Color(127, 255, 0),
+    green: new Color(0, 255, 0),
+    mint: new Color(0, 255, 127),
+    aqua: new Color(0, 255, 255),
+    skyblue: new Color(0, 127, 255),
+    blue: new Color(0, 0, 255),
+    purple: new Color(127, 0, 255),
+    magenta: new Color(255, 0, 255),
+    hotpink: new Color(255, 0, 127)
+  };
 
   /**
    * Create a new Color.
@@ -127,6 +143,20 @@ export class Color {
     this.green = green;
     this.blue = blue;
     this.alpha = alpha;
+  }
+
+  /**
+   * Parses the input hex color to a Color.
+   * @param hex The hex color.
+   * @returns {Color} The parsed color.
+   */
+  static fromHex(hex: string): Color {
+    hex = hex.replace('#', '');
+    const r = parseInt(hex.slice(0, 2), 16);
+    const g = parseInt(hex.slice(2, 4), 16);
+    const b = parseInt(hex.slice(4, 6), 16);
+    const a = parseInt(hex.slice(6, 8), 16) || 255;
+    return new Color(r, g, b, a);
   }
 
   /**
@@ -221,21 +251,6 @@ export class Color {
     return [ this.red, this.green, this.blue ];
   }
 }
-
-Color.rainbow = {
-  red: new Color(255, 0, 0),
-  orange: new Color(255, 127, 0),
-  yellow: new Color(255, 255, 0),
-  yellowgreen: new Color(127, 255, 0),
-  green: new Color(0, 255, 0),
-  mint: new Color(0, 255, 127),
-  aqua: new Color(0, 255, 255),
-  skyblue: new Color(0, 127, 255),
-  blue: new Color(0, 0, 255),
-  purple: new Color(127, 0, 255),
-  magenta: new Color(255, 0, 255),
-  hotpink: new Color(255, 0, 127)
-};
 
 /**
  * @param {string} input The snowflake.
