@@ -63,6 +63,8 @@ export async function execute(message: Discord.Message) {
       return message.channel.send('You do not have permission to run this command.');
     }
     logger.debug(`${message.author.tag} is executing command "${match.name}" in guild "${message.guild.name}".`);
+    message.channel.startTyping();
     match.execute(client, message);
+    message.channel.stopTyping();
   }
 }
