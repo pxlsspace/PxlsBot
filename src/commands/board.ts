@@ -109,11 +109,15 @@ async function execute(client: Discord.Client, message: Discord.Message) {
       const idx = (y * png.width + x) << 2;
       const pixel = boardData[idx >> 2];
       if (type === BoardType.Normal) {
-        const { red, green, blue, alpha } = colorPalette[pixel];
-        png.data[idx  ] = red;
-        png.data[idx+1] = green;
-        png.data[idx+2] = blue;
-        png.data[idx+3] = alpha;
+        if (pixel === 0xFF) {
+          png.data[idx+3] = 0;
+        } else {
+          const { red, green, blue, alpha } = colorPalette[pixel];
+          png.data[idx  ] = red;
+          png.data[idx+1] = green;
+          png.data[idx+2] = blue;
+          png.data[idx+3] = alpha;
+        }
       } else if (type === BoardType.Heatmap) {
         // TODO: Heatmap opacity
         const { red, green, blue, alpha } = heatmapColor;
