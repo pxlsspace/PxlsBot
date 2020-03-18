@@ -89,3 +89,6 @@ typings/
 
 # Config
 config.json
+
+# IntelliJ IDEA files
+.idea
