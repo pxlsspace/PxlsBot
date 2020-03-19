@@ -1,7 +1,7 @@
 import * as Discord from 'discord.js';
 
 import { getDatabase } from '../index';
-import CommandBuilder from '../command';
+import { Command } from '../command';
 import * as logger from '../logger';
 import { Color, getPrefix } from '../utils';
 
@@ -173,14 +173,15 @@ async function execute(client: Discord.Client, message: Discord.Message) {
   }
 }
 
-export const command = new CommandBuilder()
-  .setID('config')
-  .setName('Configure')
-  .setCategory('Utility')
-  .setDescription('Configures bot settings for the guild.')
-  .setUsage('config [ get (key) | set (key) (value) ]')
-  .setAliases([ 'config', 'configure' ])
-  .setServerOnly(true)
-  .setPermissions(Discord.Permissions.FLAGS.MANAGE_GUILD)
-  .setInit(init)
-  .setExecute(execute);
+export const command = new Command({
+  id: 'config',
+  name: 'Configure',
+  category: 'Utility',
+  description: 'Configures bot settings for the guild.',
+  usage: 'config [get (key) | set (key) (value)]',
+  aliases: ['config', 'configure'],
+  serverOnly: true,
+  permissions: Discord.Permissions.FLAGS.MANAGE_GUILD
+});
+command.init = init;
+command.execute = execute;

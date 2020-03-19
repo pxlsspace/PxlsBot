@@ -1,6 +1,6 @@
 import * as Discord from 'discord.js';
 
-import CommandBuilder from '../command';
+import { Command } from '../command';
 
 const coordsRegex = /\(?([0-9]+)[., ]{1,2}([0-9]+)[., ]{0,2}([0-9]+)?x?\)?/i;
 
@@ -35,17 +35,6 @@ async function execute(client: Discord.Client, message: Discord.Message) {
     return message.channel.send(`<https://pxls.space/#x=${coords.x}&y=${coords.y}&scale=${coords.scale ?? 20}>`);
 }
 
-export const command = new CommandBuilder()
-  .setID('coordinates')
-  .setName('Coordinates')
-  .setCategory('Utility')
-  .setDescription('Prints Pxls coordinates')
-  .setUsage('coords x y [zoom]')
-  .setAliases([ 'coords', 'coordinates' ])
-  .setServerOnly(false)
-  .setPermissions(0)
-  .setExecute(execute);
-
 /**
  * Verifies that the given x/y/scale are finite and <= $maximum
  * @param {string|number} x The x component
@@ -60,3 +49,12 @@ export function validateCoordinates (x, y, scale: string | number, maximum = 100
   }
   return ((isFinite(x) && isFinite(y) && scale) && parseFloat(x) <= maximum && parseFloat(y) <= maximum && scale <= maximum);
 }
+
+export const command = new Command({
+  id: 'coordinates',
+  name: 'Coordinates',
+  category: 'Utility',
+  description: 'Prints Pxls coordinates.',
+  usage: 'coords (x) (y) [zoom]',
+  aliases: ['coords', 'coordinates']
+});

@@ -2,7 +2,7 @@ import * as Discord from 'discord.js';
 import { PNG } from 'pngjs';
 import fetch from 'node-fetch';
 
-import CommandBuilder from '../command';
+import { Command } from '../command';
 import * as logger from '../logger';
 import { Color } from '../utils';
 
@@ -145,13 +145,12 @@ async function execute(client: Discord.Client, message: Discord.Message) {
   return message.channel.send(embed);
 }
 
-export const command = new CommandBuilder()
-  .setID('board')
-  .setName('Board')
-  .setCategory('Pxls')
-  .setDescription('Sends an image of the board.')
-  .setUsage('board [ heatmap | virginmap | placemap ]')
-  .setAliases([ 'board', 'boarddata', 'boardmap', 'canvas' ])
-  .setServerOnly(false)
-  .setPermissions(0)
-  .setExecute(execute);
+export const command = new Command({
+  id: 'board',
+  name: 'Board',
+  category: 'Pxls',
+  description: 'Sends an image of the board.',
+  usage: 'board [heatmap | virginmap | placemap]',
+  aliases: ['board', 'boarddata', 'boardmap', 'canvas']
+});
+command.execute = execute;
