@@ -2,7 +2,7 @@ import * as Discord from 'discord.js';
 import * as mariadb from 'mariadb';
 
 import { getDatabase } from '../index';
-import CommandBuilder from '../command';
+import { Command } from '../command';
 import * as logger from '../logger';
 import { getCommands, Color, truncate } from '../utils';
 
@@ -10,7 +10,7 @@ const config = require('../../config');
 
 let database = getDatabase();
 
-let commands: CommandBuilder[];
+let commands: Command[];
 
 /**
  * Inserts an audit log entry.
@@ -155,14 +155,15 @@ async function execute(client: Discord.Client, message: Discord.Message) {
   }
 }
 
-export const command = new CommandBuilder()
-  .setID('auditlog')
-  .setName('Audit Log')
-  .setCategory('Utility')
-  .setDescription('Displays actions taken with the bot.')
-  .setUsage('auditlog [ id ]')
-  .setAliases([ 'al', 'audit', 'auditlog', 'auditlogs' ])
-  .setServerOnly(true)
-  .setPermissions(Discord.Permissions.FLAGS.MANAGE_GUILD)
-  .setInit(init)
-  .setExecute(execute);
+export const command = new Command({
+  id: 'auditlog',
+  name: 'Audit Log',
+  category: 'Utility',
+  description: 'Display actions taken with the bot.',
+  usage: 'auditlog [id]',
+  aliases: ['al', 'audit', 'auditlog', 'auditlogs'],
+  serverOnly: true,
+  permissions: Discord.Permissions.FLAGS.MANAGE_GUILD
+});
+command.init = init;
+command.execute = execute;

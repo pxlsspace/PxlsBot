@@ -1,5 +1,5 @@
 import * as Discord from 'discord.js';
-import CommandBuilder from '../command';
+import { Command } from '../command';
 import { Color } from '../utils';
 
 async function execute(client, message) {
@@ -16,13 +16,12 @@ async function execute(client, message) {
   return message.channel.send(embed);
 }
 
-export const command = new CommandBuilder()
-  .setID('ping')
-  .setName('Ping')
-  .setCategory('Utility')
-  .setDescription('Returns the ping to Discord.')
-  .setUsage('ping')
-  .setAliases([ 'ping' ])
-  .setServerOnly(false)
-  .setPermissions(0)
-  .setExecute(execute);
+export const command = new Command({
+  id: 'ping',
+  name: 'Ping',
+  category: 'Utility',
+  description: 'Returns the ping to Discord.',
+  usage: 'ping',
+  aliases: ['ping']
+});
+command.execute = execute;

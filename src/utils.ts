@@ -3,7 +3,7 @@ import * as path from 'path';
 import * as Discord from 'discord.js';
 import * as mariadb from 'mariadb';
 
-import CommandBuilder from './command';
+import { Command } from './command';
 import * as logger from './logger';
 
 const config = require('../config');
@@ -55,7 +55,7 @@ export async function getEvents(eventsDirectory: string): Promise<{
  * @param {string} commandsDirectory The command directory.
  * @returns {Promise<CommandBuilder[]>} The commands.
  */
-export async function getCommands(commandsDirectory: string): Promise<CommandBuilder[]> {
+export async function getCommands(commandsDirectory: string): Promise<Command[]> {
   commandsDirectory = path.join(__dirname, commandsDirectory);
   let files;
   try {
@@ -70,7 +70,7 @@ export async function getCommands(commandsDirectory: string): Promise<CommandBui
     const pathToFile = path.join(commandsDirectory, file);
     try {
       const required = require(pathToFile);
-      if (required.command instanceof CommandBuilder) {
+      if (required.command instanceof Command) {
         commands.push(required.command);
       }
     } catch (err) {

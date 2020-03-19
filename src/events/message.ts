@@ -4,7 +4,7 @@ import { client, getDatabase } from '../index';
 import * as logger from '../logger';
 import { getCommands, getPrefix } from '../utils';
 
-import Command from '../command';
+import { Command } from '../command';
 
 const config = require('../../config');
 

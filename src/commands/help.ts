@@ -1,7 +1,7 @@
 import * as Discord from 'discord.js';
 
 import { getDatabase } from '../index';
-import CommandBuilder from '../command';
+import { Command } from '../command';
 import { getCommands, Color, getPrefix } from '../utils';
 
 const config = require('../../config');
@@ -12,7 +12,7 @@ const database = getDatabase();
  * An array of commands, set during initialization.
  * @property {Command[]} commands The commands.
  */
-let commands: CommandBuilder[];
+let commands: Command[];
 
 /**
  * An array of all the categories used by commands.
@@ -68,14 +68,13 @@ async function execute(client: Discord.Client, message: Discord.Message) {
   return message.channel.send(embed);
 }
 
-export const command = new CommandBuilder()
-  .setID('help')
-  .setName('Help')
-  .setCategory('Utility')
-  .setDescription('Returns a list of commands, or if specified, information about a specific command.')
-  .setUsage('help [item identifier]')
-  .setAliases([ 'help', '?' ])
-  .setServerOnly(false)
-  .setPermissions(0)
-  .setInit(init)
-  .setExecute(execute);
+export const command = new Command({
+  id: 'help',
+  name: 'Help',
+  category: 'Utility',
+  description: 'Returns a list of commands, or if specified, information about a specific command.',
+  usage: 'help [item identifier]',
+  aliases: ['help', '?']
+});
+command.init = init;
+command.execute = execute;
