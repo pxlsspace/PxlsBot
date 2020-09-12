@@ -21,7 +21,7 @@
     "colors": "^1.4.0",
     "discord.js": "^11.6.2",
     "mariadb": "^2.2.0",
-    "node-fetch": "^2.6.0",
+    "node-fetch": "^2.6.1",
     "parse-duration": "^0.1.2",
     "pngjs": "^3.4.0"
   },
