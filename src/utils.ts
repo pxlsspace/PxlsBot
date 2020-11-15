@@ -6,6 +6,7 @@ import * as mariadb from 'mariadb';
 import { Command } from './command';
 import * as logger from './logger';
 
+// eslint-disable-next-line @typescript-eslint/no-var-requires
 const config = require('../config');
 
 /**
@@ -16,11 +17,11 @@ const config = require('../config');
  */
 export async function getEvents(eventsDirectory: string): Promise<{
   name: string;
-  init: Function;
-  execute: Function;
+  init: () => unknown;
+  execute: (client: Discord.Client, message: Discord.Message) => unknown;
 }[]> {
   eventsDirectory = path.join(__dirname, eventsDirectory);
-  let files: string[]
+  let files: string[];
   try {
     files = await fs.promises.readdir(eventsDirectory);
   } catch (err) {
@@ -28,11 +29,12 @@ export async function getEvents(eventsDirectory: string): Promise<{
     logger.fatal(err);
   }
   files = files.filter(file => file.endsWith('.ts'));
-  let events = [];
+  const events = [];
   for (let file of files) {
     file = file.replace('.ts', '');
     const pathToFile = path.join(eventsDirectory, file);
     try {
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
       const required = require(pathToFile);
       if (typeof required.execute === 'function') {
         events.push({
@@ -65,10 +67,11 @@ export async function getCommands(commandsDirectory: string): Promise<Command[]>
     logger.fatal(err);
   }
   files = files.filter(file => file.endsWith('.ts'));
-  let commands = [];
-  for (let file of files) {
+  const commands = [];
+  for (const file of files) {
     const pathToFile = path.join(commandsDirectory, file);
     try {
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
       const required = require(pathToFile);
       if (required.command instanceof Command) {
         commands.push(required.command);
@@ -88,7 +91,7 @@ export async function getCommands(commandsDirectory: string): Promise<Command[]>
  * @return {number[]} The multiplied numbers.
  */
 export function multiplyBy(x: number, ...values: number[]): number[] {
-  let multiplied: number[] = [];
+  const multiplied: number[] = [];
   values.forEach(value => multiplied.push(value * x));
   return multiplied;
 }
@@ -138,7 +141,7 @@ export class Color {
    * @param {number} alpha The alpha color value.
    * Defaults to 255 if unspecified.
    */
-  constructor(red: number, green: number, blue: number, alpha: number = 255) {
+  constructor(red: number, green: number, blue: number, alpha = 255) {
     this.red = red;
     this.green = green;
     this.blue = blue;
@@ -240,7 +243,7 @@ export class Color {
    * @returns {number[]} The color values.
    */
   toArray(): [ number, number, number, number ] {
-      return [ this.red, this.green, this.blue, this.alpha ];
+    return [this.red, this.green, this.blue, this.alpha];
   }
 
   /**
@@ -248,7 +251,7 @@ export class Color {
    * @returns {number[]} The color values.
    */
   toColorResolvable(): [ number, number, number ] {
-    return [ this.red, this.green, this.blue ];
+    return [this.red, this.green, this.blue];
   }
 }
 
@@ -259,6 +262,9 @@ export class Color {
 export function isSnowflake(input: string): boolean {
   return !isNaN(Number(input)) && input.length === 18;
 }
+
+// TODO(netux): implement find() functionality separately on the functions below,
+// then join them all together as one function.
 
 /**
  * Finds a user, member, role, or channel by the specified input.
@@ -315,6 +321,7 @@ export async function find(type: string, client: Discord.Client, message: Discor
   return retVal;
 }
 
+/* eslint-disable @typescript-eslint/explicit-module-boundary-types */
 /** Finds a user by the input. */
 export const findUser = (...x: [Discord.Client, Discord.Message, string]) => find('user', ...x);
 /** Finds a member by the input. */
@@ -323,6 +330,7 @@ export const findMember = (...x: [Discord.Client, Discord.Message, string]) => f
 export const findRole = (...x: [Discord.Client, Discord.Message, string]) => find('role', ...x);
 /** Finds a channel by the input. */
 export const findChannel = (...x: [Discord.Client, Discord.Message, string]) => find('channel', ...x);
+/* eslint-enable @typescript-eslint/explicit-module-boundary-types */
 
 /**
  * Returns the configured prefix for the guild, or the default one if none.

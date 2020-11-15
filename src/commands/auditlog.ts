@@ -6,9 +6,10 @@ import { Command } from '../command';
 import * as logger from '../logger';
 import { getCommands, Color, truncate } from '../utils';
 
+// eslint-disable-next-line @typescript-eslint/no-var-requires
 const config = require('../../config');
 
-let database = getDatabase();
+const database = getDatabase();
 
 let commands: Command[];
 
@@ -18,7 +19,7 @@ let commands: Command[];
  * @param {Discord.Message} message The message.
  * @param {string} commandID The command ID.
  */
-export async function insertAuditLog(connection: mariadb.Connection, message: Discord.Message, commandID: string) {
+export async function insertAuditLog(connection: mariadb.Connection, message: Discord.Message, commandID: string): Promise<void> {
   try {
     await connection.query(`
       INSERT INTO

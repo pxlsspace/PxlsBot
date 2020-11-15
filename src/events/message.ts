@@ -6,6 +6,7 @@ import { getCommands, getPrefix } from '../utils';
 
 import { Command } from '../command';
 
+// eslint-disable-next-line @typescript-eslint/no-var-requires
 const config = require('../../config');
 
 const database = getDatabase();
@@ -18,7 +19,7 @@ let commands: Command[];
 
 export const name = 'message';
 
-export async function init() {
+export async function init(): Promise<void> {
   logger.info('Initializing commands...');
   commands = await getCommands(config.commandsPath);
   commands.forEach(async command => {
@@ -30,7 +31,7 @@ export async function init() {
  * Executed whenever a message is received over the WebSocket.
  * @param {Discord.Message} message The message.
  */
-export async function execute(message: Discord.Message) {
+export async function execute(message: Discord.Message): Promise<void> {
   if (message.author.bot) {
     return;
   }
@@ -51,7 +52,7 @@ export async function execute(message: Discord.Message) {
   if (args[0].toLowerCase().startsWith(prefix)) {
     const cmd = args[0].toLowerCase().replace(prefix, '');
     let match: Command;
-    for (let command of commands) {
+    for (const command of commands) {
       if (command.aliases.includes(cmd)) {
         match = command;
       }
@@ -60,11 +61,13 @@ export async function execute(message: Discord.Message) {
       return;
     }
     if (match.serverOnly && !message.guild) {
-      return message.channel.send('This command may only be run in a guild.');
+      message.channel.send('This command may only be run in a guild.');
+      return;
     }
     if (!match.hasPermission(message.member)) {
       logger.debug(`${message.author.tag} attempted to execute command "${match.name}" in guild "${message.guild.name}" without permission.`);
-      return message.channel.send('You do not have permission to run this command.');
+      message.channel.send('You do not have permission to run this command.');
+      return;
     }
     logger.debug(`${message.author.tag} is executing command "${match.name}" in guild "${message.guild.name}".`);
     message.channel.startTyping();

@@ -1,12 +1,13 @@
 import * as Discord from 'discord.js';
-export const client = new Discord.Client();
-
 import * as mariadb from 'mariadb';
 
 import * as logger from './logger';
 import { getEvents } from './utils';
 
+// eslint-disable-next-line @typescript-eslint/no-var-requires
 const config = require('../config');
+
+export const client = new Discord.Client();
 
 /**
  * A database connection pool, set during initialization.
@@ -22,18 +23,20 @@ export function getDatabase(): mariadb.Pool {
   return database;
 }
 
+export type EventObject = {
+  name: string,
+  init?: () => unknown,
+  execute: (...args: unknown[]) => unknown
+}
+
 /**
  * An array of event objects, set during initialization.
  * @property {object[]} - The events objects.
  */
-export let events: {
-  name: string,
-  init: Function,
-  execute: Function
-}[];
+export let events: EventObject[];
 
 /** Attempts to log into Discord. */
-export async function login() {
+export async function login(): Promise<void> {
   await client.login(config.token).catch(err => {
     logger.error(err);
     exit(1);
@@ -69,7 +72,7 @@ async function main() {
 }
 
 /** Attempts to gracefully exit. */
-export async function exit(code = 0) {
+export async function exit(code = 0): Promise<void> {
   logger.info('Exiting...');
   await client.destroy().catch(() => {
     logger.error('Could not gracefully destroy client.');

@@ -4,6 +4,7 @@ import { getDatabase } from '../index';
 import { Command } from '../command';
 import { getCommands, Color, getPrefix } from '../utils';
 
+// eslint-disable-next-line @typescript-eslint/no-var-requires
 const config = require('../../config');
 
 const database = getDatabase();
@@ -18,7 +19,7 @@ let commands: Command[];
  * An array of all the categories used by commands.
  * @property {string[]} categories The categories.
  */
-let categories: string[] = [];
+const categories: string[] = [];
 
 async function init() {
   commands = await getCommands(config.commandsPath);
@@ -35,13 +36,12 @@ async function execute(client: Discord.Client, message: Discord.Message) {
   if (args.length < 2) {
     // (prefix)help
     const categoryNames = Object.keys(categories);
-    for (let category of categoryNames) {
-      let commandList = '';
-      let categoryCommands = categories[category];
-      commandList = categoryCommands.map(cmd => cmd.name);
+    for (const category of categoryNames) {
+      const categoryCommands = categories[category];
+      const commandList = categoryCommands.map(cmd => cmd.name);
       embed.addField(category, commandList);
     }
-    let helpText = `For more information on a specific command, try \`${config.prefix}help [command]\`.`;
+    const helpText = `For more information on a specific command, try \`${config.prefix}help [command]\`.`;
     embed.setDescription(helpText);
   } else {
     // (prefix)help [command name/alias]
@@ -56,7 +56,7 @@ async function execute(client: Discord.Client, message: Discord.Message) {
     let prefix = '';
     const connection = await database.getConnection();
     prefix = await getPrefix(connection, message.guild.id);
-    let helpText = `
+    const helpText = `
       **Description:** ${command.description}
       **Usage:** \`${prefix}${command.usage}\`
       **Aliases:** [ \`${command.aliases.join('` | `')}\` ]

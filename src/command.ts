@@ -1,5 +1,5 @@
 import * as Discord from 'discord.js';
-import {Message} from "discord.js";
+import { Message } from 'discord.js';
 
 interface CommandData {
   id: string;
@@ -19,8 +19,8 @@ export class Command implements CommandData {
   public description: string;
   public usage: string;
   public aliases: string[];
-  public serverOnly: boolean = false;
-  public permissions: number = 0;
+  public serverOnly = false;
+  public permissions = 0;
 
   init: () => Promise<void>;
   execute: (client: Discord.Client, message: Discord.Message) => Promise<Message | void>;

@@ -39,7 +39,7 @@ async function execute(client: Discord.Client, message: Discord.Message) {
     // (prefix)config
     try {
       const connection = await database.getConnection();
-      const results: {}[] = await connection.query(`
+      const results: Record<string, unknown>[] = await connection.query(`
         SELECT
           *
         FROM
@@ -78,7 +78,7 @@ async function execute(client: Discord.Client, message: Discord.Message) {
     }
     try {
       const connection = await database.getConnection();
-      const results: {}[] = await connection.query(`
+      const results: Record<string, unknown>[] = await connection.query(`
         SELECT
           *
         FROM
@@ -117,7 +117,7 @@ async function execute(client: Discord.Client, message: Discord.Message) {
     if (args.length < 4) {
       return message.channel.send('You must specify a value.');
     }
-    let setVal: any = args[3];
+    let setVal: unknown = args[3];
     if (!isNaN(Number(args[3]))) {
       setVal = parseFloat(args[3]);
     }

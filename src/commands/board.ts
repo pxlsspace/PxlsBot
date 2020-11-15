@@ -108,6 +108,7 @@ async function execute(client: Discord.Client, message: Discord.Message) {
     for (let x = 0; x < png.width; x++) {
       const idx = (y * png.width + x) << 2;
       const pixel = boardData[idx >> 2];
+      /* eslint-disable space-infix-ops, computed-property-spacing, no-multi-spaces */
       if (type === BoardType.Normal) {
         if (pixel === 0xFF) {
           png.data[idx+3] = 0;
@@ -126,7 +127,7 @@ async function execute(client: Discord.Client, message: Discord.Message) {
         png.data[idx+2] = blue * (pixel / 0xFF);
         png.data[idx+3] = alpha;
       } else if (type === BoardType.Virginmap) {
-        let { red, green, blue, alpha } = pixel === 0xFF ? virginmapColor : Color.rainbow.black;
+        const { red, green, blue, alpha } = pixel === 0xFF ? virginmapColor : Color.rainbow.black;
         png.data[idx  ] = red;
         png.data[idx+1] = green;
         png.data[idx+2] = blue;
@@ -137,6 +138,7 @@ async function execute(client: Discord.Client, message: Discord.Message) {
         png.data[idx+2] = 255;
         png.data[idx+3] = pixel === 0xFF ? 0 : 255;
       }
+      /* eslint-enable space-infix-ops, computed-property-spacing, no-multi-spaces */
     }
   }
   const attachment = new Discord.Attachment(png.pack(), 'boarddata.png');
