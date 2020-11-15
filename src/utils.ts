@@ -9,17 +9,19 @@ import * as logger from './logger';
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const config = require('../config');
 
+export type EventObject = {
+  name: string,
+  init?: () => unknown,
+  execute: (...args: unknown[]) => unknown
+}
+
 /**
  * Returns a list of event objects from each JavaScript file in the specified
  * directory.
  * @param {string} eventsDirectory The event directory.
  * @returns {Promise<{}[]>} The events.
  */
-export async function getEvents(eventsDirectory: string): Promise<{
-  name: string;
-  init: () => unknown;
-  execute: (client: Discord.Client, message: Discord.Message) => unknown;
-}[]> {
+export async function getEvents(eventsDirectory: string): Promise<EventObject[]> {
   eventsDirectory = path.join(__dirname, eventsDirectory);
   let files: string[];
   try {

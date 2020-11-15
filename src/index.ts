@@ -2,7 +2,7 @@ import * as Discord from 'discord.js';
 import * as pg from 'pg';
 
 import * as logger from './logger';
-import { getEvents } from './utils';
+import { EventObject, getEvents } from './utils';
 
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const config = require('../config');
@@ -21,12 +21,6 @@ let database: pg.Pool;
  */
 export function getDatabase(): pg.Pool {
   return database;
-}
-
-export type EventObject = {
-  name: string,
-  init?: () => unknown,
-  execute: (...args: unknown[]) => unknown
 }
 
 /**
