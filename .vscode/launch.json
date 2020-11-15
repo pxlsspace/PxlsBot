@@ -14,9 +14,7 @@
 			"runtimeArgs": [
 				"-r", "ts-node/register"
 			],
-			"args": [
-				"${workspaceFolder}/src/index.ts"
-			]
+			"program": "${workspaceFolder}/src/index.ts"
 		}
 	]
 }
