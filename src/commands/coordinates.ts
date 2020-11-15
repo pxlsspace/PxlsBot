@@ -58,3 +58,4 @@ export const command = new Command({
   usage: 'coords (x) (y) [zoom]',
   aliases: ['coords', 'coordinates']
 });
+command.execute = execute;
