@@ -38,13 +38,13 @@ export async function execute(message: Discord.Message): Promise<void> {
   const args = message.content.split(' ');
   let prefix: string;
   try {
-    const connection = await database.getConnection();
+    const connection = await database.connect();
     if (typeof message.guild === 'undefined') {
       prefix = config.prefix;
     } else {
       prefix = await getPrefix(connection, message.guild.id);
     }
-    await connection.end();
+    connection.release();
   } catch (err) {
     logger.error('Could not get prefix from database.');
     logger.fatal(err);

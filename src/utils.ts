@@ -1,7 +1,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import * as Discord from 'discord.js';
-import * as mariadb from 'mariadb';
+import * as pg from 'pg';
 
 import { Command } from './command';
 import * as logger from './logger';
@@ -333,27 +333,26 @@ export const findChannel = (message: Discord.Message, input: string): Discord.Gu
 
 /**
  * Returns the configured prefix for the guild, or the default one if none.
- * @param {mariadb.Connection} connection The connection.
+ * @param {pg.PoolClient} connection The connection.
  * @param {string} guildID The guild ID.
  * @returns {Promise<string>} The prefix.
  */
-export async function getPrefix(connection: mariadb.Connection, guildID: string): Promise<string> {
+export async function getPrefix(connection: pg.PoolClient, guildID: string): Promise<string> {
   let prefix = config.prefix;
   try {
-    const results = await connection.query(`
+    const result = await connection.query(`
       SELECT
         prefix
       FROM
         config
       WHERE
-        guild_id = ?
+        guild_id = $1
     `, [
       guildID
     ]);
-    if (results.length > 0) {
-      prefix = results[0].prefix || prefix;
+    if (result.rowCount > 0) {
+      prefix = result.rows[0].prefix || prefix;
     }
-    await connection.end();
   } catch (err) {
     logger.error('Error getting prefix.');
     logger.error(err);

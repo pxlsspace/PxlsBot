@@ -1,5 +1,5 @@
 import * as Discord from 'discord.js';
-import * as mariadb from 'mariadb';
+import * as pg from 'pg';
 
 import * as logger from './logger';
 import { getEvents } from './utils';
@@ -11,15 +11,15 @@ export const client = new Discord.Client();
 
 /**
  * A database connection pool, set during initialization.
- * @property {mariadb.Pool}
+ * @property {pg.Pool}
  */
-let database: mariadb.Pool;
+let database: pg.Pool;
 
 /**
  * Gets the database pool.
- * @returns {mariadb.Pool}
+ * @returns {pg.Pool}
  */
-export function getDatabase(): mariadb.Pool {
+export function getDatabase(): pg.Pool {
   return database;
 }
 
@@ -50,12 +50,11 @@ async function main() {
   if (typeof config.token === 'undefined') {
     logger.fatal('`token` missing in config');
   }
-  database = mariadb.createPool(config.database);
+  database = new pg.Pool(config.database);
   logger.debug('Testing database configuration...');
   try {
-    const connection = await database.getConnection();
-    await connection.ping();
-    await connection.end();
+    const connection = await database.connect();
+    await connection.release();
     logger.debug('Database successfully pinged.');
   } catch (err) {
     logger.error(err);
@@ -74,6 +73,9 @@ async function main() {
 /** Attempts to gracefully exit. */
 export async function exit(code = 0): Promise<void> {
   logger.info('Exiting...');
+  await database.end().catch(() => {
+    logger.error('Could not gracefully end database pool.');
+  });
   await client.destroy().catch(() => {
     logger.error('Could not gracefully destroy client.');
   });
