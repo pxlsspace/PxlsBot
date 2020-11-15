@@ -70,13 +70,24 @@ export async function initLogs(): Promise<void> {
   }
 }
 
+const LogLevels = ['DEBUG', 'INFO', 'WARN', 'ERROR', 'FATAL'];
+export type LogLevel = typeof LogLevels;
+
 /** Represents the colorized log levels. */
-const Levels = Object.freeze({
+const LevelColor: { [level in LogLevel[number]]: string } = Object.freeze({
   DEBUG: 'DEBUG'.bgBlue,
   INFO: 'INFO'.cyan,
   WARN: 'WARN'.bgYellow.white,
   ERROR: 'ERROR'.red,
   FATAL: 'FATAL'.bgRed.white
+});
+/** Maps log levels to their console.* function. */
+const LevelToPrintFn: { [level in LogLevel[number]]: (...args: unknown[]) => void } = Object.freeze({
+  DEBUG: console.debug,
+  INFO: console.info,
+  WARN: console.warn,
+  ERROR: console.error,
+  FATAL: console.error
 });
 
 /**
@@ -84,10 +95,10 @@ const Levels = Object.freeze({
  * @param {string} level The logging level.
  * @param {...any} x The content to log.
  */
-export function log(level: string, ...x: unknown[]): void {
+export function log(level?: LogLevel[number], ...x: unknown[]): void {
   // If log is called without the level, move the thing being logged over to x
   // and default the level to INFO.
-  if (typeof Levels[level.toUpperCase()] === 'undefined') {
+  if (!LogLevels.includes(level.toUpperCase())) {
     x = (<unknown[]> [level]).concat(x);
     level = 'INFO';
   }
@@ -99,9 +110,10 @@ export function log(level: string, ...x: unknown[]): void {
   // Example: [2019-08-01 14:00:00]
   const dateTime = '[' + date + ' ' + getTime() + ']';
   const minimumLevel: string = config.logging.level;
-  const levelKeys = Object.keys(Levels);
+  const levelKeys = Object.keys(LevelColor);
   if (levelKeys.indexOf(level) >= levelKeys.indexOf(minimumLevel)) {
-    console.info(dateTime.yellow, Levels[level] + ':', ...x);
+    const logFunc = LevelToPrintFn[level];
+    logFunc(dateTime.yellow, LevelColor[level] + ':', ...x);
   }
   if (!canLogToFile) {
     return;
