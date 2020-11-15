@@ -68,7 +68,7 @@ const placemapColor = Color.rainbow.white;
 
 async function execute(client: Discord.Client, message: Discord.Message) {
   const args = message.content.split(' ');
-  const embed = new Discord.RichEmbed();
+  const embed = new Discord.MessageEmbed();
   embed.setTimestamp();
   let type: BoardType;
   if (/h(eat)?m(ap)?/.test(args[1]?.toLowerCase())) {
@@ -141,8 +141,8 @@ async function execute(client: Discord.Client, message: Discord.Message) {
       /* eslint-enable space-infix-ops, computed-property-spacing, no-multi-spaces */
     }
   }
-  const attachment = new Discord.Attachment(png.pack(), 'boarddata.png');
-  embed.attachFile(attachment);
+  const attachment = new Discord.MessageAttachment(PNG.sync.write(png.pack()), 'boarddata.png');
+  embed.attachFiles([attachment]);
   embed.setImage('attachment://boarddata.png');
   return message.channel.send(embed);
 }

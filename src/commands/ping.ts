@@ -5,7 +5,7 @@ import { Color } from '../utils';
 async function execute(client, message) {
   const goodPingColor = new Color(0, 255, 0);
   const badPingColor = new Color(255, 0, 0);
-  const embed = new Discord.RichEmbed();
+  const embed = new Discord.MessageEmbed();
   embed.setDescription(`
     **Average Ping:** ${Math.floor(client.ping)}ms
 

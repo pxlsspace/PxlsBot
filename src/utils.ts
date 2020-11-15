@@ -269,65 +269,65 @@ export function isSnowflake(input: string): boolean {
  * @param {Discord.Client} client The client.
  * @param {Discord.Message} message The message.
  * @param {string} input The input.
- * @returns {Discord.User | Discord.GuildMember | Discord.Role | Discord.GuildChannel | false} The found user, member, role, or channel.
+ * @returns {Promise<Discord.User | Discord.GuildMember | Discord.Role | Discord.GuildChannel | false>} The found user, member, role, or channel.
  */
-export async function find(type: string, client: Discord.Client, message: Discord.Message, input: string): Promise<Discord.User | Discord.GuildMember | Discord.Role | Discord.GuildChannel | false> {
+export function find(type: string, client: Discord.Client, message: Discord.Message, input: string): Promise<Discord.User | Discord.GuildMember | Discord.Role | Discord.GuildChannel | false> {
   switch (type) {
     case 'user': {
-      return await findUser(client, input);
+      return findUser(client, input);
     }
     case 'member': {
-      return await findMember(message, input);
+      return findMember(message, input);
     }
     case 'role': {
       return findRole(message, input);
     }
     case 'channel': {
-      return findChannel(message, input);
+      return Promise.resolve(findChannel(message, input));
     }
   }
-  return false;
+  return Promise.resolve(null);
 }
 
 /** Finds a user by the input. */
 export const findUser = async (client: Discord.Client, input: string): Promise<Discord.User | false> => {
   if (isSnowflake(input)) {
     // Attempt to fetch the user by their ID
-    return await client.fetchUser(input).catch(() => false);
+    return await client.users.fetch(input).catch(() => false);
   } else {
     // Attempt to find the user by their tag
-    return client.users.find(v => v.tag.toLowerCase() === input.toLowerCase());
+    return client.users.cache.find(v => v.tag.toLowerCase() === input.toLowerCase());
   }
 };
 /** Finds a member by the input. */
 export const findMember = async (message: Discord.Message, input: string): Promise<Discord.GuildMember | false> => {
   if (isSnowflake(input)) {
     // Attempt to fetch the member by their ID
-    return await message.guild.fetchMember(input).catch(() => false);
+    return await message.guild.members.fetch(input).catch(() => false);
   } else {
     // Attempt to fetch the member by their display name or username
-    return message.guild.members.find(v => v.displayName.toLowerCase() === input.toLowerCase());
+    return message.guild.members.cache.find(v => v.displayName.toLowerCase() === input.toLowerCase());
   }
 };
 /** Finds a role by the input. */
-export const findRole = (message: Discord.Message, input: string): Discord.Role | false => {
+export const findRole = async (message: Discord.Message, input: string): Promise<Discord.Role | false> => {
   if (isSnowflake(input)) {
     // Attempt to get the role by the ID
-    return message.guild.roles.get(input) ?? false;
+    return await message.guild.roles.fetch(input) ?? false;
   } else {
     // Attempt to get the role by the name
     // The first role with the matching name will be returned
-    return message.guild.roles.find(v => v.name.toLowerCase() === input.toLowerCase()) ?? false;
+    return message.guild.roles.cache.find(v => v.name.toLowerCase() === input.toLowerCase()) ?? false;
   }
 };
 /** Finds a channel by the input. */
 export const findChannel = (message: Discord.Message, input: string): Discord.GuildChannel | false => {
   if (isSnowflake(input)) {
     // Attempt to get the channel by the ID
-    return message.guild.channels.get(input) ?? false;
+    return message.guild.channels.cache.get(input) ?? false;
   } else {
     // Attempt to get the channel by the name
-    return message.guild.channels.find(v => v.name.toLowerCase() === input.toLowerCase()) ?? false;
+    return message.guild.channels.cache.find(v => v.name.toLowerCase() === input.toLowerCase()) ?? false;
   }
 };
 

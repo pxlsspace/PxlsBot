@@ -76,9 +76,11 @@ export async function exit(code = 0): Promise<void> {
   await database.end().catch(() => {
     logger.error('Could not gracefully end database pool.');
   });
-  await client.destroy().catch(() => {
+  try {
+    client.destroy();
+  } catch (err) {
     logger.error('Could not gracefully destroy client.');
-  });
+  }
   process.exit(code);
 }
 

@@ -62,7 +62,7 @@ async function init() {
 
 async function execute(client: Discord.Client, message: Discord.Message) {
   const args = message.content.split(' ');
-  const embed = new Discord.RichEmbed();
+  const embed = new Discord.MessageEmbed();
   embed.setColor(Color.rainbow.skyblue.toColorResolvable());
   if (args.length < 2) {
     try {
@@ -83,7 +83,7 @@ async function execute(client: Discord.Client, message: Discord.Message) {
       }
       const formattedArr: string[] = [];
       for (const auditLog of result.rows) {
-        const user = await client.fetchUser(auditLog.user_id);
+        const user = await client.users.fetch(auditLog.user_id);
         const command = commands.find(cmd => cmd.id === auditLog.command_id);
         const commandID = command.id ?? auditLog.command_id;
         const timestamp = logger.getDateTime(auditLog.timestamp, true);
@@ -139,11 +139,11 @@ async function execute(client: Discord.Client, message: Discord.Message) {
       return message.channel.send(`Could not find audit log by ID \`${id}\`.`);
     }
     const auditLog = result.rows[0];
-    const user = await client.fetchUser(auditLog.user_id);
+    const user = await client.users.fetch(auditLog.user_id);
     const command = commands.find(cmd => cmd.id === auditLog.command_id);
     const commandID = command.id ?? auditLog.command_id;
     embed.setTitle(`Audit Log #${id}`);
-    embed.setAuthor(`${user.tag} (${user.id})`, user.displayAvatarURL);
+    embed.setAuthor(`${user.tag} (${user.id})`, user.displayAvatarURL({ dynamic: true }));
     embed.addField('Command', `\`${commandID}\``);
     embed.addField('Message Text', truncate('```\n' + auditLog.message + '```', 1024, ' ...', true));
     embed.setTimestamp(auditLog.timestamp);

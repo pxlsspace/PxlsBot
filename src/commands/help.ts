@@ -31,7 +31,7 @@ async function init() {
 
 async function execute(client: Discord.Client, message: Discord.Message) {
   const args = message.content.split(' ');
-  const embed = new Discord.RichEmbed();
+  const embed = new Discord.MessageEmbed();
   embed.setColor(Color.rainbow.skyblue.toColorResolvable());
   if (args.length < 2) {
     // (prefix)help
