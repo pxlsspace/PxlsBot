@@ -1,24 +1,25 @@
 import * as Discord from 'discord.js';
-export const client = new Discord.Client();
-
-import * as mariadb from 'mariadb';
+import * as pg from 'pg';
 
 import * as logger from './logger';
-import { getEvents } from './utils';
+import { EventObject, getEvents } from './utils';
 
+// eslint-disable-next-line @typescript-eslint/no-var-requires
 const config = require('../config');
+
+export const client = new Discord.Client();
 
 /**
  * A database connection pool, set during initialization.
- * @property {mariadb.Pool}
+ * @property {pg.Pool}
  */
-let database: mariadb.Pool;
+let database: pg.Pool;
 
 /**
  * Gets the database pool.
- * @returns {mariadb.Pool}
+ * @returns {pg.Pool}
  */
-export function getDatabase(): mariadb.Pool {
+export function getDatabase(): pg.Pool {
   return database;
 }
 
@@ -26,14 +27,10 @@ export function getDatabase(): mariadb.Pool {
  * An array of event objects, set during initialization.
  * @property {object[]} - The events objects.
  */
-export let events: {
-  name: string,
-  init: Function,
-  execute: Function
-}[];
+export let events: EventObject[];
 
 /** Attempts to log into Discord. */
-export async function login() {
+export async function login(): Promise<void> {
   await client.login(config.token).catch(err => {
     logger.error(err);
     exit(1);
@@ -47,12 +44,11 @@ async function main() {
   if (typeof config.token === 'undefined') {
     logger.fatal('`token` missing in config');
   }
-  database = mariadb.createPool(config.database);
+  database = new pg.Pool(config.database);
   logger.debug('Testing database configuration...');
   try {
-    const connection = await database.getConnection();
-    await connection.ping();
-    await connection.end();
+    const connection = await database.connect();
+    await connection.release();
     logger.debug('Database successfully pinged.');
   } catch (err) {
     logger.error(err);
@@ -69,11 +65,16 @@ async function main() {
 }
 
 /** Attempts to gracefully exit. */
-export async function exit(code = 0) {
+export async function exit(code = 0): Promise<void> {
   logger.info('Exiting...');
-  await client.destroy().catch(() => {
-    logger.error('Could not gracefully destroy client.');
+  await database.end().catch(() => {
+    logger.error('Could not gracefully end database pool.');
   });
+  try {
+    client.destroy();
+  } catch (err) {
+    logger.error('Could not gracefully destroy client.');
+  }
   process.exit(code);
 }
 

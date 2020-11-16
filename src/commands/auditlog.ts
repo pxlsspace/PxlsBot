@@ -1,31 +1,32 @@
 import * as Discord from 'discord.js';
-import * as mariadb from 'mariadb';
+import * as pg from 'pg';
 
 import { getDatabase } from '../index';
 import { Command } from '../command';
 import * as logger from '../logger';
 import { getCommands, Color, truncate } from '../utils';
 
+// eslint-disable-next-line @typescript-eslint/no-var-requires
 const config = require('../../config');
 
-let database = getDatabase();
+const database = getDatabase();
 
 let commands: Command[];
 
 /**
  * Inserts an audit log entry.
- * @param {mariadb.Connection} connection The database connection.
+ * @param {pg.PoolClient} connection The database connection.
  * @param {Discord.Message} message The message.
  * @param {string} commandID The command ID.
  */
-export async function insertAuditLog(connection: mariadb.Connection, message: Discord.Message, commandID: string) {
+export async function insertAuditLog(connection: pg.PoolClient, message: Discord.Message, commandID: string): Promise<void> {
   try {
     await connection.query(`
       INSERT INTO
         auditlog
         (guild_id, user_id, command_id, message)
       VALUES
-        (?, ?, ?, ?)
+        ($1, $2, $3, $4)
     `, [
       message.guild.id,
       message.author.id,
@@ -41,18 +42,18 @@ export async function insertAuditLog(connection: mariadb.Connection, message: Di
 async function init() {
   commands = await getCommands(config.commandsPath);
   try {
-    const connection = await database.getConnection();
+    const connection = await database.connect();
     await connection.query(`
       CREATE TABLE IF NOT EXISTS auditlog (
-        id INT PRIMARY KEY AUTO_INCREMENT,
+        id SERIAL NOT NULL PRIMARY KEY,
         guild_id VARCHAR(18) NOT NULL,
         user_id VARCHAR(18) NOT NULL,
         command_id TEXT,
         message TEXT,
-        timestamp TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP()
+        timestamp TIMESTAMP NOT NULL DEFAULT NOW()
       )
     `);
-    await connection.end();
+    connection.release();
   } catch (err) {
     logger.error('Could not insert "auditlog" table.');
     logger.fatal(err);
@@ -61,29 +62,28 @@ async function init() {
 
 async function execute(client: Discord.Client, message: Discord.Message) {
   const args = message.content.split(' ');
-  const embed = new Discord.RichEmbed();
+  const embed = new Discord.MessageEmbed();
   embed.setColor(Color.rainbow.skyblue.toColorResolvable());
   if (args.length < 2) {
     try {
-      const connection = await database.getConnection();
-      const results = await connection.query(`
+      const connection = await database.connect();
+      const result = await connection.query(`
         SELECT
           *
         FROM
           auditlog
         WHERE
-          guild_id = ?
+          guild_id = $1
       `, [
         message.guild.id
       ]);
-      await connection.end();
-      if (results.length < 1) {
+      connection.release();
+      if (result.rowCount < 1) {
         return message.channel.send('This server has no audit log entries.');
       }
-      const auditLogs = results;
       const formattedArr: string[] = [];
-      for (const auditLog of auditLogs) {
-        const user = await client.fetchUser(auditLog.user_id);
+      for (const auditLog of result.rows) {
+        const user = await client.users.fetch(auditLog.user_id);
         const command = commands.find(cmd => cmd.id === auditLog.command_id);
         const commandID = command.id ?? auditLog.command_id;
         const timestamp = logger.getDateTime(auditLog.timestamp, true);
@@ -121,29 +121,29 @@ async function execute(client: Discord.Client, message: Discord.Message) {
   }
   const id = parseInt(args[1]);
   try {
-    const connection = await database.getConnection();
-    const results = await connection.query(`
+    const connection = await database.connect();
+    const result = await connection.query(`
       SELECT
         *
       FROM
         auditlog
       WHERE
-        guild_id = ?
-        AND id = ?
+        guild_id = $1
+        AND id = $2
     `, [
       message.guild.id,
       id
     ]);
-    await connection.end();
-    if (results.length < 1) {
+    connection.release();
+    if (result.rowCount < 1) {
       return message.channel.send(`Could not find audit log by ID \`${id}\`.`);
     }
-    const auditLog = results[0];
-    const user = await client.fetchUser(auditLog.user_id);
+    const auditLog = result.rows[0];
+    const user = await client.users.fetch(auditLog.user_id);
     const command = commands.find(cmd => cmd.id === auditLog.command_id);
     const commandID = command.id ?? auditLog.command_id;
     embed.setTitle(`Audit Log #${id}`);
-    embed.setAuthor(`${user.tag} (${user.id})`, user.displayAvatarURL);
+    embed.setAuthor(`${user.tag} (${user.id})`, user.displayAvatarURL({ dynamic: true }));
     embed.addField('Command', `\`${commandID}\``);
     embed.addField('Message Text', truncate('```\n' + auditLog.message + '```', 1024, ' ...', true));
     embed.setTimestamp(auditLog.timestamp);

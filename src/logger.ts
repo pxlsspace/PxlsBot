@@ -13,6 +13,7 @@ function pad(x: number): string {
   return x < 10 ? '0' + x : x.toString();
 }
 
+// eslint-disable-next-line @typescript-eslint/no-var-requires
 const config = require('../config');
 
 /** Returns the date in YYYY-MM-DD format. */
@@ -26,7 +27,7 @@ export function getTime(date: Date = new Date()): string {
 }
 
 /** Results the date and time in YYYY-MM-DD hh:mm:ss format. */
-export function getDateTime(date: Date = new Date(), addTimezone: boolean): string {
+export function getDateTime(date: Date = new Date(), addTimezone = false): string {
   const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
   return getDate(date) + ' ' + getTime(date) + (addTimezone ? ' ' + timezone : '');
 }
@@ -55,7 +56,7 @@ const cannotSaveToFile = () => {
  * If config.logging.saveToFile is true, logs will be saved to the file system
  * at ./logs/{YYYY-MM-DD}.log.
  */
-export async function initLogs() {
+export async function initLogs(): Promise<void> {
   if (!config.logging.saveToFile) {
     return;
   }
@@ -69,13 +70,24 @@ export async function initLogs() {
   }
 }
 
+const LogLevels = ['DEBUG', 'INFO', 'WARN', 'ERROR', 'FATAL'];
+export type LogLevel = typeof LogLevels;
+
 /** Represents the colorized log levels. */
-const Levels = Object.freeze({
+const LevelColor: { [level in LogLevel[number]]: string } = Object.freeze({
   DEBUG: 'DEBUG'.bgBlue,
   INFO: 'INFO'.cyan,
   WARN: 'WARN'.bgYellow.white,
   ERROR: 'ERROR'.red,
   FATAL: 'FATAL'.bgRed.white
+});
+/** Maps log levels to their console.* function. */
+const LevelToPrintFn: { [level in LogLevel[number]]: (...args: unknown[]) => void } = Object.freeze({
+  DEBUG: console.debug,
+  INFO: console.info,
+  WARN: console.warn,
+  ERROR: console.error,
+  FATAL: console.error
 });
 
 /**
@@ -83,11 +95,11 @@ const Levels = Object.freeze({
  * @param {string} level The logging level.
  * @param {...any} x The content to log.
  */
-export function log(level: string, ...x: any[]) {
+export function log(level?: LogLevel[number], ...x: unknown[]): void {
   // If log is called without the level, move the thing being logged over to x
   // and default the level to INFO.
-  if (typeof Levels[level.toUpperCase()] === 'undefined') {
-    x = [level].concat(x);
+  if (!LogLevels.includes(level.toUpperCase())) {
+    x = (<unknown[]> [level]).concat(x);
     level = 'INFO';
   }
   // Defaults x if nothing specific is logged.
@@ -98,9 +110,10 @@ export function log(level: string, ...x: any[]) {
   // Example: [2019-08-01 14:00:00]
   const dateTime = '[' + date + ' ' + getTime() + ']';
   const minimumLevel: string = config.logging.level;
-  const levelKeys = Object.keys(Levels);
+  const levelKeys = Object.keys(LevelColor);
   if (levelKeys.indexOf(level) >= levelKeys.indexOf(minimumLevel)) {
-    console.log(dateTime.yellow, Levels[level] + ':', ...x);
+    const logFunc = LevelToPrintFn[level];
+    logFunc(dateTime.yellow, LevelColor[level] + ':', ...x);
   }
   if (!canLogToFile) {
     return;
@@ -116,12 +129,12 @@ export function log(level: string, ...x: any[]) {
 }
 
 /** Logs at DEBUG level. */
-export const debug = (...x: any[]) => log('DEBUG', ...x);
+export const debug = (...x: unknown[]): void => log('DEBUG', ...x);
 /** Logs at INFO level. */
-export const info = (...x: any[]) => log('INFO', ...x);
+export const info = (...x: unknown[]): void => log('INFO', ...x);
 /** Logs at WARN level. */
-export const warn = (...x: any[]) => log('WARN', ...x);
+export const warn = (...x: unknown[]): void => log('WARN', ...x);
 /** Logs at ERROR level. */
-export const error = (...x: any[]) => log('ERROR', ...x);
+export const error = (...x: unknown[]): void => log('ERROR', ...x);
 /** Logs at FATAL level and exits ungracefully. */
-export const fatal = (...x: any[]) => { log('FATAL', ...x); process.exit(1); };
+export const fatal = (...x: unknown[]): void => { log('FATAL', ...x); process.exit(1); };

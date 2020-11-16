@@ -1,12 +1,19 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import * as Discord from 'discord.js';
-import * as mariadb from 'mariadb';
+import * as pg from 'pg';
 
 import { Command } from './command';
 import * as logger from './logger';
 
+// eslint-disable-next-line @typescript-eslint/no-var-requires
 const config = require('../config');
+
+export type EventObject = {
+  name: string,
+  init?: () => unknown,
+  execute: (...args: unknown[]) => unknown
+}
 
 /**
  * Returns a list of event objects from each JavaScript file in the specified
@@ -14,13 +21,9 @@ const config = require('../config');
  * @param {string} eventsDirectory The event directory.
  * @returns {Promise<{}[]>} The events.
  */
-export async function getEvents(eventsDirectory: string): Promise<{
-  name: string;
-  init: Function;
-  execute: Function;
-}[]> {
+export async function getEvents(eventsDirectory: string): Promise<EventObject[]> {
   eventsDirectory = path.join(__dirname, eventsDirectory);
-  let files: string[]
+  let files: string[];
   try {
     files = await fs.promises.readdir(eventsDirectory);
   } catch (err) {
@@ -28,11 +31,12 @@ export async function getEvents(eventsDirectory: string): Promise<{
     logger.fatal(err);
   }
   files = files.filter(file => file.endsWith('.ts'));
-  let events = [];
+  const events = [];
   for (let file of files) {
     file = file.replace('.ts', '');
     const pathToFile = path.join(eventsDirectory, file);
     try {
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
       const required = require(pathToFile);
       if (typeof required.execute === 'function') {
         events.push({
@@ -65,10 +69,11 @@ export async function getCommands(commandsDirectory: string): Promise<Command[]>
     logger.fatal(err);
   }
   files = files.filter(file => file.endsWith('.ts'));
-  let commands = [];
-  for (let file of files) {
+  const commands = [];
+  for (const file of files) {
     const pathToFile = path.join(commandsDirectory, file);
     try {
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
       const required = require(pathToFile);
       if (required.command instanceof Command) {
         commands.push(required.command);
@@ -88,7 +93,7 @@ export async function getCommands(commandsDirectory: string): Promise<Command[]>
  * @return {number[]} The multiplied numbers.
  */
 export function multiplyBy(x: number, ...values: number[]): number[] {
-  let multiplied: number[] = [];
+  const multiplied: number[] = [];
   values.forEach(value => multiplied.push(value * x));
   return multiplied;
 }
@@ -138,7 +143,7 @@ export class Color {
    * @param {number} alpha The alpha color value.
    * Defaults to 255 if unspecified.
    */
-  constructor(red: number, green: number, blue: number, alpha: number = 255) {
+  constructor(red: number, green: number, blue: number, alpha = 255) {
     this.red = red;
     this.green = green;
     this.blue = blue;
@@ -240,7 +245,7 @@ export class Color {
    * @returns {number[]} The color values.
    */
   toArray(): [ number, number, number, number ] {
-      return [ this.red, this.green, this.blue, this.alpha ];
+    return [this.red, this.green, this.blue, this.alpha];
   }
 
   /**
@@ -248,7 +253,7 @@ export class Color {
    * @returns {number[]} The color values.
    */
   toColorResolvable(): [ number, number, number ] {
-    return [ this.red, this.green, this.blue ];
+    return [this.red, this.green, this.blue];
   }
 }
 
@@ -266,87 +271,90 @@ export function isSnowflake(input: string): boolean {
  * @param {Discord.Client} client The client.
  * @param {Discord.Message} message The message.
  * @param {string} input The input.
- * @returns {Discord.User | Discord.GuildMember | Discord.Role | Discord.TextChannel | false} The found user, member, role, or channel.
+ * @returns {Promise<Discord.User | Discord.GuildMember | Discord.Role | Discord.GuildChannel | false>} The found user, member, role, or channel.
  */
-export async function find(type: string, client: Discord.Client, message: Discord.Message, input: string): Promise<Discord.User | Discord.GuildMember | Discord.Role | Discord.TextChannel | false> {
-  let retVal;
-  if (type === 'user') {
-    if (isSnowflake(input)) {
-      // Attempt to fetch the user by their ID
-      retVal = await client.fetchUser(input).catch(() => false);
-    } else {
-      // Attempt to find the user by their tag
-      retVal = client.users.find(v => {
-        return v.tag.toLowerCase() === input.toLowerCase();
-      });
+export function find(type: string, client: Discord.Client, message: Discord.Message, input: string): Promise<Discord.User | Discord.GuildMember | Discord.Role | Discord.GuildChannel | false> {
+  switch (type) {
+    case 'user': {
+      return findUser(client, input);
     }
-  } else if (type === 'member') {
-    if (isSnowflake(input)) {
-      // Attempt to fetch the member by their ID
-      retVal = await message.guild.fetchMember(input).catch(() => false);
-    } else {
-      // Attempt to fetch the member by their display name or username
-      retVal = message.guild.members.find(v => {
-        return v.displayName.toLowerCase() === input.toLowerCase();
-      });
+    case 'member': {
+      return findMember(message, input);
     }
-  } else if (type === 'role') {
-    if (isSnowflake(input)) {
-      // Attempt to get the role by the ID
-      retVal = message.guild.roles.get(input) || false;
-    } else {
-      // Attempt to get the role by the name
-      // The first role with the matching name will be returned
-      retVal = message.guild.roles.find(v => {
-        return v.name.toLowerCase() === input.toLowerCase();
-      }) || false;
+    case 'role': {
+      return findRole(message, input);
     }
-  } else if (type === 'channel') {
-    if (isSnowflake(input)) {
-      // Attempt to get the channel by the ID
-      retVal = message.guild.channels.get(input) || false;
-    } else {
-      // Attempt to get the channel by the name
-      retVal = message.guild.channels.find(v => {
-        return v.name.toLowerCase() === input.toLowerCase();
-      }) || false;
+    case 'channel': {
+      return Promise.resolve(findChannel(message, input));
     }
   }
-  return retVal;
+  return Promise.resolve(null);
 }
 
 /** Finds a user by the input. */
-export const findUser = (...x: [Discord.Client, Discord.Message, string]) => find('user', ...x);
+export const findUser = async (client: Discord.Client, input: string): Promise<Discord.User | false> => {
+  if (isSnowflake(input)) {
+    // Attempt to fetch the user by their ID
+    return await client.users.fetch(input).catch(() => false);
+  } else {
+    // Attempt to find the user by their tag
+    return client.users.cache.find(v => v.tag.toLowerCase() === input.toLowerCase());
+  }
+};
 /** Finds a member by the input. */
-export const findMember = (...x: [Discord.Client, Discord.Message, string]) => find('member', ...x);
+export const findMember = async (message: Discord.Message, input: string): Promise<Discord.GuildMember | false> => {
+  if (isSnowflake(input)) {
+    // Attempt to fetch the member by their ID
+    return await message.guild.members.fetch(input).catch(() => false);
+  } else {
+    // Attempt to fetch the member by their display name or username
+    return message.guild.members.cache.find(v => v.displayName.toLowerCase() === input.toLowerCase());
+  }
+};
 /** Finds a role by the input. */
-export const findRole = (...x: [Discord.Client, Discord.Message, string]) => find('role', ...x);
+export const findRole = async (message: Discord.Message, input: string): Promise<Discord.Role | false> => {
+  if (isSnowflake(input)) {
+    // Attempt to get the role by the ID
+    return await message.guild.roles.fetch(input) ?? false;
+  } else {
+    // Attempt to get the role by the name
+    // The first role with the matching name will be returned
+    return message.guild.roles.cache.find(v => v.name.toLowerCase() === input.toLowerCase()) ?? false;
+  }
+};
 /** Finds a channel by the input. */
-export const findChannel = (...x: [Discord.Client, Discord.Message, string]) => find('channel', ...x);
+export const findChannel = (message: Discord.Message, input: string): Discord.GuildChannel | false => {
+  if (isSnowflake(input)) {
+    // Attempt to get the channel by the ID
+    return message.guild.channels.cache.get(input) ?? false;
+  } else {
+    // Attempt to get the channel by the name
+    return message.guild.channels.cache.find(v => v.name.toLowerCase() === input.toLowerCase()) ?? false;
+  }
+};
 
 /**
  * Returns the configured prefix for the guild, or the default one if none.
- * @param {mariadb.Connection} connection The connection.
+ * @param {pg.PoolClient} connection The connection.
  * @param {string} guildID The guild ID.
  * @returns {Promise<string>} The prefix.
  */
-export async function getPrefix(connection: mariadb.Connection, guildID: string): Promise<string> {
+export async function getPrefix(connection: pg.PoolClient, guildID: string): Promise<string> {
   let prefix = config.prefix;
   try {
-    const results = await connection.query(`
+    const result = await connection.query(`
       SELECT
         prefix
       FROM
         config
       WHERE
-        guild_id = ?
+        guild_id = $1
     `, [
       guildID
     ]);
-    if (results.length > 0) {
-      prefix = results[0].prefix || prefix;
+    if (result.rowCount > 0) {
+      prefix = result.rows[0].prefix || prefix;
     }
-    await connection.end();
   } catch (err) {
     logger.error('Error getting prefix.');
     logger.error(err);

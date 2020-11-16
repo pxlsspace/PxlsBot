@@ -92,3 +92,6 @@ config.json
 
 # IntelliJ IDEA files
 .idea
+
+# Visual Studio Code files
+.vscode/settings.json

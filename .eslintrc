@@ -1,0 +1,18 @@
+{
+  "root": true,
+  "parser": "@typescript-eslint/parser",
+  "plugins": [
+    "@typescript-eslint"
+  ],
+  "extends": [
+    "semistandard",
+    "plugin:@typescript-eslint/recommended"
+  ],
+  "env": {
+    "node": true
+  },
+  "rules": {
+    "no-console": ["error", {"allow": ["info", "warn", "error", "debug", "trace"]}],
+    "space-before-function-paren": "off"
+  }
+}
