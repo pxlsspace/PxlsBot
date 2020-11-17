@@ -4,6 +4,8 @@ import { format } from 'util';
 
 import 'colors';
 
+import * as config from './config';
+
 /**
  * Adds a 0 to the beginning of the number if it's less than 10.
  * @param {number} x The number to pad
@@ -12,9 +14,6 @@ import 'colors';
 function pad(x: number): string {
   return x < 10 ? '0' + x : x.toString();
 }
-
-// eslint-disable-next-line @typescript-eslint/no-var-requires
-const config = require('../config');
 
 /** Returns the date in YYYY-MM-DD format. */
 export function getDate(date: Date = new Date()): string {
@@ -57,7 +56,7 @@ const cannotSaveToFile = () => {
  * at ./logs/{YYYY-MM-DD}.log.
  */
 export async function initLogs(): Promise<void> {
-  if (!config.logging.saveToFile) {
+  if (!config.get('logging')?.saveToFile ?? true) {
     return;
   }
   try {
@@ -109,7 +108,7 @@ export function log(level?: LogLevel[number], ...x: unknown[]): void {
   const date = getDate();
   // Example: [2019-08-01 14:00:00]
   const dateTime = '[' + date + ' ' + getTime() + ']';
-  const minimumLevel: string = config.logging.level;
+  const minimumLevel: string = config.get('logging').level ?? 'INFO';
   const levelKeys = Object.keys(LevelColor);
   if (levelKeys.indexOf(level) >= levelKeys.indexOf(minimumLevel)) {
     const logFunc = LevelToPrintFn[level];

@@ -3,9 +3,7 @@ import * as Discord from 'discord.js';
 import { getDatabase } from '../index';
 import { Command } from '../command';
 import { getCommands, Color, getPrefix } from '../utils';
-
-// eslint-disable-next-line @typescript-eslint/no-var-requires
-const config = require('../../config');
+import * as config from '../config';
 
 const database = getDatabase();
 
@@ -22,7 +20,7 @@ let commands: Command[];
 const categories: string[] = [];
 
 async function init() {
-  commands = await getCommands(config.commandsPath);
+  commands = await getCommands(config.get('commandsPath', 'commands'));
   commands.forEach(command => {
     categories[command.category] = categories[command.category] || [];
     categories[command.category].push(command);
@@ -41,7 +39,7 @@ async function execute(client: Discord.Client, message: Discord.Message) {
       const commandList = categoryCommands.map(cmd => cmd.name);
       embed.addField(category, commandList);
     }
-    const helpText = `For more information on a specific command, try \`${config.prefix}help [command]\`.`;
+    const helpText = `For more information on a specific command, try \`${config.get('prefix')}help [command]\`.`;
     embed.setDescription(helpText);
   } else {
     // (prefix)help [command name/alias]

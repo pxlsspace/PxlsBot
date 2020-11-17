@@ -1,8 +1,6 @@
 import { login } from '../index';
 import * as logger from '../logger';
-
-// eslint-disable-next-line @typescript-eslint/no-var-requires
-const config = require('../../config');
+import * as config from '../config';
 
 export const name = 'error';
 
@@ -15,7 +13,7 @@ export async function execute(err: Error): Promise<void> {
     logger.error('Lost connection to Discord, will attempt reconnect in 30 seconds...');
     setTimeout(async () => {
       await login();
-    }, config.reconnectTimeout);
+    }, config.get('reconnectTimeout'));
     return;
   }
   logger.error(err);

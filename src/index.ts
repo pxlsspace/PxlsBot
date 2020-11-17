@@ -3,9 +3,7 @@ import * as pg from 'pg';
 
 import * as logger from './logger';
 import { EventObject, getEvents } from './utils';
-
-// eslint-disable-next-line @typescript-eslint/no-var-requires
-const config = require('../config');
+import * as config from './config';
 
 export const client = new Discord.Client();
 
@@ -31,7 +29,7 @@ export let events: EventObject[];
 
 /** Attempts to log into Discord. */
 export async function login(): Promise<void> {
-  await client.login(config.token).catch(err => {
+  await client.login(config.get('token')).catch(err => {
     logger.error(err);
     exit(1);
   });
@@ -41,10 +39,10 @@ export async function login(): Promise<void> {
 async function main() {
   await logger.initLogs();
   logger.info('PxlsBot 1.0.0');
-  if (typeof config.token === 'undefined') {
+  if (typeof config.get('token') === 'undefined') {
     logger.fatal('`token` missing in config');
   }
-  database = new pg.Pool(config.database);
+  database = new pg.Pool(config.get('database'));
   logger.debug('Testing database configuration...');
   try {
     const connection = await database.connect();
@@ -55,7 +53,7 @@ async function main() {
     logger.fatal('Could not initialize database connection.');
   }
   logger.info('Initializing events...');
-  events = await getEvents(config.eventsPath);
+  events = await getEvents(config.get('eventsPath', 'events'));
   for (const event of events) {
     if (typeof event.init !== 'undefined') await event.init();
     client.on(event.name, event.execute);

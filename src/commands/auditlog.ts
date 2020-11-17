@@ -5,9 +5,7 @@ import { getDatabase } from '../index';
 import { Command } from '../command';
 import * as logger from '../logger';
 import { getCommands, Color, truncate } from '../utils';
-
-// eslint-disable-next-line @typescript-eslint/no-var-requires
-const config = require('../../config');
+import * as config from '../config';
 
 const database = getDatabase();
 
@@ -40,7 +38,7 @@ export async function insertAuditLog(connection: pg.PoolClient, message: Discord
 }
 
 async function init() {
-  commands = await getCommands(config.commandsPath);
+  commands = await getCommands(config.get('commandsPath', 'commands'));
   try {
     const connection = await database.connect();
     await connection.query(`
