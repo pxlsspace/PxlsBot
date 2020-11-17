@@ -1,11 +1,21 @@
 import * as Discord from 'discord.js';
+import * as pg from 'pg';
+import { DatabaseError } from 'pg-protocol';
 
 import { getDatabase } from '../index';
 import { Command } from '../command';
 import * as logger from '../logger';
-import { Color, getPrefix } from '../utils';
+import { Color } from '../utils';
+import * as config from '../config';
 
 import { insertAuditLog } from './auditlog';
+
+export type DatabaseGuildConfig = {
+  /* eslint-disable camelcase */
+  guild_id: string,
+  prefix: string | null
+  /* eslint-enable camelcase */
+}
 
 const database = getDatabase();
 
@@ -29,7 +39,36 @@ async function init() {
   }
 }
 
-async function execute(client: Discord.Client, message: Discord.Message) {
+/**
+ * Returns the configured prefix for the guild, or the default one if none.
+ * @param {pg.PoolClient} connection The connection.
+ * @param {string} guildID The guild ID.
+ * @returns {Promise<string>} The prefix.
+ */
+export async function getPrefix(connection: pg.PoolClient, guildID: string): Promise<string> {
+  let prefix = config.get('prefix');
+  try {
+    const result = await connection.query(`
+      SELECT
+        prefix
+      FROM
+        config
+      WHERE
+        guild_id = $1
+    `, [
+      guildID
+    ]);
+    if (result.rowCount > 0) {
+      prefix = (result.rows[0] as DatabaseGuildConfig).prefix || prefix;
+    }
+  } catch (err) {
+    logger.error('Error getting prefix.');
+    logger.error(err);
+  }
+  return prefix;
+}
+
+async function execute(client: Discord.Client, message: Discord.Message): Promise<void> {
   const args = message.content.split(' ');
   const embed = new Discord.MessageEmbed();
   embed.setColor(Color.rainbow.skyblue.toColorResolvable());
@@ -50,29 +89,32 @@ async function execute(client: Discord.Client, message: Discord.Message) {
       if (result.rowCount < 1) {
         const prefix = await getPrefix(connection, message.guild.id);
         connection.release();
-        return message.channel.send(`No configurations were found for the guild. Try creating one with \`${prefix}config create\`.`);
+        await message.channel.send(`No configurations were found for the guild. Try creating one with \`${prefix}config create\`.`);
+        return;
       }
       connection.release();
-      const guildConfig = result.rows[0];
+      const guildConfig = result.rows[0] as DatabaseGuildConfig;
       const formattedKeyValues = Object.keys(guildConfig).filter(key => {
         return columnWhitelist.includes(key);
-      }).map(key => {
-        return `${key} : \`${guildConfig[key]}\``;
-      }).join('\n');
+      }).map(key => `${key} : \`${guildConfig[key as keyof DatabaseGuildConfig]}\``).join('\n');
       embed.setDescription(formattedKeyValues);
-      return message.channel.send(embed);
+      await message.channel.send(embed);
+      return;
     } catch (err) {
       logger.error(err);
-      return message.channel.send('Could not get config. Details have been logged.');
+      await message.channel.send('Could not get config. Details have been logged.');
+      return;
     }
   }
   const action = args[1].toLowerCase();
   if (action === 'get') {
     if (args.length < 3) {
-      return message.channel.send('You must specify a config key.');
+      await message.channel.send('You must specify a config key.');
+      return;
     }
     if (!columnWhitelist.includes(args[2].toLowerCase())) {
-      return message.channel.send('The specified config key is not on the column whitelist.');
+      await message.channel.send('The specified config key is not on the column whitelist.');
+      return;
     }
     try {
       const connection = await database.connect();
@@ -89,34 +131,37 @@ async function execute(client: Discord.Client, message: Discord.Message) {
       if (rows.length < 1) {
         const prefix = await getPrefix(connection, message.guild.id);
         connection.release();
-        return message.channel.send(`No configurations were found for the guild. Try creating one with \`${prefix}config create\`.`);
+        await message.channel.send(`No configurations were found for the guild. Try creating one with \`${prefix}config create\`.`);
+        return;
       }
       connection.release();
-      const guildConfig = rows[0];
+      const guildConfig = rows[0] as DatabaseGuildConfig;
       const formattedKeyValue = Object.keys(guildConfig).filter(key => {
         return key.toLowerCase() === args[2].toLowerCase() &&
           columnWhitelist.includes(key);
-      }).map(key => {
-        return `${key} : \`${guildConfig[key]}\``;
-      }).join();
+      }).map(key => `${key} : \`${guildConfig[key as keyof DatabaseGuildConfig]}\``).join('\n');
       embed.setDescription(formattedKeyValue);
-      return message.channel.send(embed);
+      await message.channel.send(embed);
+      return;
     } catch (err) {
       logger.error(err);
-      return message.channel.send('Could not get config key. Details have been logged.');
+      await message.channel.send('Could not get config key. Details have been logged.');
     }
   } else if (action === 'set') {
     if (args.length < 3) {
-      return message.channel.send('You must specify a config key.');
+      await message.channel.send('You must specify a config key.');
+      return;
     }
     const key = args[2].toLowerCase();
     if (!columnWhitelist.includes(key)) {
-      return message.channel.send('The specified config key is not on the column whitelist.');
+      await message.channel.send('The specified config key is not on the column whitelist.');
+      return;
     }
     if (args.length < 4) {
-      return message.channel.send('You must specify a value.');
+      await message.channel.send('You must specify a value.');
+      return;
     }
-    let setVal: unknown = args[3];
+    let setVal: string | number = args[3];
     if (!isNaN(Number(args[3]))) {
       setVal = parseFloat(args[3]);
     }
@@ -137,10 +182,11 @@ async function execute(client: Discord.Client, message: Discord.Message) {
       connection.release();
       embed.setColor(Color.rainbow.green.toColorResolvable());
       embed.setDescription(`Config key \`${key}\` has been set to \`${setVal}\`.`);
-      return message.channel.send(embed);
+      await message.channel.send(embed);
+      return;
     } catch (err) {
       logger.error(err);
-      return message.channel.send('Could not set config key. Details have been logged.');
+      await message.channel.send('Could not set config key. Details have been logged.');
     }
   } else if (action === 'create') {
     try {
@@ -158,17 +204,18 @@ async function execute(client: Discord.Client, message: Discord.Message) {
       connection.release();
       embed.setColor(Color.rainbow.green.toColorResolvable());
       embed.setDescription('Default configuration has been generated.');
-      return message.channel.send(embed);
+      await message.channel.send(embed);
+      return;
     } catch (err) {
-      if (err.code === 'ER_DUP_ENTRY') {
-        return message.channel.send('Config entry already exists.');
+      if ((err as DatabaseError).code === '23505') { // Duplicate entry
+        await message.channel.send('Config entry already exists.');
       } else {
-        logger.error(err.code);
-        return message.channel.send('Could not create config entry. Details have been logged.');
+        logger.error(err);
+        await message.channel.send('Could not create config entry. Details have been logged.');
       }
     }
   } else {
-    return message.channel.send(`Unknown subcommand \`${action}\`.`);
+    await message.channel.send(`Unknown subcommand \`${action}\`.`);
   }
 }
 

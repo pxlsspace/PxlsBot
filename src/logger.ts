@@ -1,4 +1,4 @@
-import * as fs from 'fs';
+import * as fs from 'fs/promises';
 import * as path from 'path';
 import { format } from 'util';
 
@@ -6,23 +6,14 @@ import 'colors';
 
 import * as config from './config';
 
-/**
- * Adds a 0 to the beginning of the number if it's less than 10.
- * @param {number} x The number to pad
- * @returns {string} The padded number.
- */
-function pad(x: number): string {
-  return x < 10 ? '0' + x : x.toString();
-}
-
 /** Returns the date in YYYY-MM-DD format. */
 export function getDate(date: Date = new Date()): string {
-  return date.getFullYear() + '-' + pad(date.getMonth()) + '-' + pad(date.getDate());
+  return `${date.getFullYear()}-${date.getMonth().toString().padStart(2, '0')}-${date.getDate().toString().padStart(2, '0')}`;
 }
 
 /** Returns the time in hh:mm:ss format. */
 export function getTime(date: Date = new Date()): string {
-  return pad(date.getHours()) + ':' + pad(date.getMinutes()) + ':' + pad(date.getSeconds());
+  return `${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}:${date.getSeconds().toString().padStart(2, '0')}`;
 }
 
 /** Results the date and time in YYYY-MM-DD hh:mm:ss format. */
@@ -60,9 +51,9 @@ export async function initLogs(): Promise<void> {
     return;
   }
   try {
-    fs.mkdirSync(logsPath);
+    await fs.mkdir(logsPath);
   } catch (err) {
-    if (err.code !== 'EEXIST') {
+    if ((err as { code?: string }).code !== 'EEXIST') {
       cannotSaveToFile();
       fatal(err);
     }
@@ -119,12 +110,10 @@ export function log(level?: LogLevel[number], ...x: unknown[]): void {
   }
   const pathToLogFile = path.join(logsPath, date + '.log');
   const formatted = format(dateTime, level + ':', ...x) + '\n';
-  try {
-    fs.appendFileSync(pathToLogFile, formatted);
-  } catch (err) {
+  fs.appendFile(pathToLogFile, formatted).catch((err) => {
     cannotSaveToFile();
     error(err);
-  }
+  });
 }
 
 /** Logs at DEBUG level. */

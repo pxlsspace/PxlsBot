@@ -75,7 +75,7 @@ const heatmapColor = new Color(205, 92, 92);
 const virginmapColor = new Color(0, 255, 0);
 const placemapColor = Color.rainbow.white;
 
-async function execute(client: Discord.Client, message: Discord.Message) {
+async function execute(client: Discord.Client, message: Discord.Message): Promise<void> {
   const args = message.content.split(' ');
   const embed = new Discord.MessageEmbed();
   embed.setTimestamp();
@@ -100,12 +100,14 @@ async function execute(client: Discord.Client, message: Discord.Message) {
   const info = await getInfo();
   if (info == null) {
     embed.setDescription('Could not get Pxls information.');
-    return message.channel.send(embed);
+    await message.channel.send(embed);
+    return;
   }
   const boardData = await getBoard(type);
   if (boardData == null) {
     embed.setDescription('Could not get the board data.');
-    return message.channel.send(embed);
+    await message.channel.send(embed);
+    return;
   }
   const colorPalette = info.palette.map(hex => Color.fromHex(hex));
   const png = new PNG({
@@ -162,7 +164,7 @@ async function execute(client: Discord.Client, message: Discord.Message) {
   const attachment = new Discord.MessageAttachment(PNG.sync.write(png.pack()), 'boarddata.png');
   embed.attachFiles([attachment]);
   embed.setImage('attachment://boarddata.png');
-  return message.channel.send(embed);
+  await message.channel.send(embed);
 }
 
 export const command = new Command({
