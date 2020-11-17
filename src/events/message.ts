@@ -5,9 +5,7 @@ import * as logger from '../logger';
 import { getCommands, getPrefix } from '../utils';
 
 import { Command } from '../command';
-
-// eslint-disable-next-line @typescript-eslint/no-var-requires
-const config = require('../../config');
+import * as config from '../config';
 
 const database = getDatabase();
 
@@ -21,7 +19,7 @@ export const name = 'message';
 
 export async function init(): Promise<void> {
   logger.info('Initializing commands...');
-  commands = await getCommands(config.commandsPath);
+  commands = await getCommands(config.get('commandsPath', 'commands'));
   commands.forEach(async command => {
     if (typeof command.init !== 'undefined') await command.init();
   });
@@ -40,7 +38,7 @@ export async function execute(message: Discord.Message): Promise<void> {
   try {
     const connection = await database.connect();
     if (typeof message.guild === 'undefined') {
-      prefix = config.prefix;
+      prefix = config.get('prefix');
     } else {
       prefix = await getPrefix(connection, message.guild.id);
     }

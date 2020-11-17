@@ -44,14 +44,23 @@ enum BoardType {
 async function getBoard(type: BoardType): Promise<Buffer | null> {
   // TODO: Configurable board source
   let reqURL = 'https://pxls.space/';
-  if (type === BoardType.Normal) {
-    reqURL += 'boarddata';
-  } else if (type === BoardType.Heatmap) {
-    reqURL += 'heatmap';
-  } else if (type === BoardType.Virginmap) {
-    reqURL += 'virginmap';
-  } else if (type === BoardType.Placemap) {
-    reqURL += 'placemap';
+  switch (type) {
+    case BoardType.Normal: {
+      reqURL += 'boarddata';
+      break;
+    }
+    case BoardType.Heatmap: {
+      reqURL += 'heatmap';
+      break;
+    }
+    case BoardType.Virginmap: {
+      reqURL += 'virginmap';
+      break;
+    }
+    case BoardType.Placemap: {
+      reqURL += 'placemap';
+      break;
+    }
   }
   const response = await fetch(reqURL);
   if (!response.ok) {
@@ -109,34 +118,43 @@ async function execute(client: Discord.Client, message: Discord.Message) {
       const idx = (y * png.width + x) << 2;
       const pixel = boardData[idx >> 2];
       /* eslint-disable space-infix-ops, computed-property-spacing, no-multi-spaces */
-      if (type === BoardType.Normal) {
-        if (pixel === 0xFF) {
-          png.data[idx+3] = 0;
-        } else {
-          const { red, green, blue, alpha } = colorPalette[pixel];
+      switch (type) {
+        case BoardType.Normal: {
+          if (pixel === 0xFF) {
+            png.data[idx+3] = 0;
+          } else {
+            const { red, green, blue, alpha } = colorPalette[pixel];
+            png.data[idx  ] = red;
+            png.data[idx+1] = green;
+            png.data[idx+2] = blue;
+            png.data[idx+3] = alpha;
+          }
+          break;
+        }
+        case BoardType.Heatmap: {
+          // TODO: Heatmap opacity
+          const { red, green, blue, alpha } = heatmapColor;
+          png.data[idx  ] = red * (pixel / 0xFF);
+          png.data[idx+1] = green * (pixel / 0xFF);
+          png.data[idx+2] = blue * (pixel / 0xFF);
+          png.data[idx+3] = alpha;
+          break;
+        }
+        case BoardType.Virginmap: {
+          const { red, green, blue, alpha } = pixel === 0xFF ? virginmapColor : Color.rainbow.black;
           png.data[idx  ] = red;
           png.data[idx+1] = green;
           png.data[idx+2] = blue;
           png.data[idx+3] = alpha;
+          break;
         }
-      } else if (type === BoardType.Heatmap) {
-        // TODO: Heatmap opacity
-        const { red, green, blue, alpha } = heatmapColor;
-        png.data[idx  ] = red * (pixel / 0xFF);
-        png.data[idx+1] = green * (pixel / 0xFF);
-        png.data[idx+2] = blue * (pixel / 0xFF);
-        png.data[idx+3] = alpha;
-      } else if (type === BoardType.Virginmap) {
-        const { red, green, blue, alpha } = pixel === 0xFF ? virginmapColor : Color.rainbow.black;
-        png.data[idx  ] = red;
-        png.data[idx+1] = green;
-        png.data[idx+2] = blue;
-        png.data[idx+3] = alpha;
-      } else if (type === BoardType.Placemap) {
-        png.data[idx  ] = 255;
-        png.data[idx+1] = 255;
-        png.data[idx+2] = 255;
-        png.data[idx+3] = pixel === 0xFF ? 0 : 255;
+        case BoardType.Placemap: {
+          png.data[idx  ] = 255;
+          png.data[idx+1] = 255;
+          png.data[idx+2] = 255;
+          png.data[idx+3] = pixel === 0xFF ? 0 : 255;
+          break;
+        }
       }
       /* eslint-enable space-infix-ops, computed-property-spacing, no-multi-spaces */
     }

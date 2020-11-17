@@ -5,9 +5,7 @@ import * as pg from 'pg';
 
 import { Command } from './command';
 import * as logger from './logger';
-
-// eslint-disable-next-line @typescript-eslint/no-var-requires
-const config = require('../config');
+import * as config from './config';
 
 export type EventObject = {
   name: string,
@@ -340,7 +338,7 @@ export const findChannel = (message: Discord.Message, input: string): Discord.Gu
  * @returns {Promise<string>} The prefix.
  */
 export async function getPrefix(connection: pg.PoolClient, guildID: string): Promise<string> {
-  let prefix = config.prefix;
+  let prefix = config.get('prefix');
   try {
     const result = await connection.query(`
       SELECT
