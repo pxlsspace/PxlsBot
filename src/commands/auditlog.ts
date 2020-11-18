@@ -7,6 +7,17 @@ import * as logger from '../logger';
 import { getCommands, Color, truncate } from '../utils';
 import * as config from '../config';
 
+type DatabaseAuditLog = {
+  /* eslint-disable camelcase */
+  id: number,
+  guild_id: string,
+  user_id: string,
+  command_id: string | null,
+  message: string | null,
+  timestamp: Date
+  /* eslint-enable camelcase */
+}
+
 const database = getDatabase();
 
 let commands: Command[];
@@ -58,7 +69,7 @@ async function init() {
   }
 }
 
-async function execute(client: Discord.Client, message: Discord.Message) {
+async function execute(client: Discord.Client, message: Discord.Message): Promise<void> {
   const args = message.content.split(' ');
   const embed = new Discord.MessageEmbed();
   embed.setColor(Color.rainbow.skyblue.toColorResolvable());
@@ -77,10 +88,11 @@ async function execute(client: Discord.Client, message: Discord.Message) {
       ]);
       connection.release();
       if (result.rowCount < 1) {
-        return message.channel.send('This server has no audit log entries.');
+        await message.channel.send('This server has no audit log entries.');
+        return;
       }
       const formattedArr: string[] = [];
-      for (const auditLog of result.rows) {
+      for (const auditLog of <DatabaseAuditLog[]> result.rows) {
         const user = await client.users.fetch(auditLog.user_id);
         const command = commands.find(cmd => cmd.id === auditLog.command_id);
         const commandID = command.id ?? auditLog.command_id;
@@ -106,16 +118,18 @@ async function execute(client: Discord.Client, message: Discord.Message) {
       }
       for (const formattedStr of messageBuffer) {
         embed.setDescription(formattedStr);
-        message.channel.send(embed);
+        await message.channel.send(embed);
       }
       return;
     } catch (err) {
       logger.error(err);
-      return message.channel.send('Could not display audit log. Details have been logged.');
+      await message.channel.send('Could not display audit log. Details have been logged.');
+      return;
     }
   }
   if (isNaN(Number(args[1]))) {
-    return message.channel.send('You must specify a valid audit log ID - not a number.');
+    await message.channel.send('You must specify a valid audit log ID - not a number.');
+    return;
   }
   const id = parseInt(args[1]);
   try {
@@ -134,9 +148,10 @@ async function execute(client: Discord.Client, message: Discord.Message) {
     ]);
     connection.release();
     if (result.rowCount < 1) {
-      return message.channel.send(`Could not find audit log by ID \`${id}\`.`);
+      await message.channel.send(`Could not find audit log by ID \`${id}\`.`);
+      return;
     }
-    const auditLog = result.rows[0];
+    const auditLog = result.rows[0] as DatabaseAuditLog;
     const user = await client.users.fetch(auditLog.user_id);
     const command = commands.find(cmd => cmd.id === auditLog.command_id);
     const commandID = command.id ?? auditLog.command_id;
@@ -145,11 +160,11 @@ async function execute(client: Discord.Client, message: Discord.Message) {
     embed.addField('Command', `\`${commandID}\``);
     embed.addField('Message Text', truncate('```\n' + auditLog.message + '```', 1024, ' ...', true));
     embed.setTimestamp(auditLog.timestamp);
-    return message.channel.send(embed);
+    await message.channel.send(embed);
   } catch (err) {
     logger.error(`Could not search for audit log by ID '${id}'.`);
     logger.error(err);
-    return message.channel.send(`Could not search for audit log by ID \`${id}\`.`);
+    await message.channel.send(`Could not search for audit log by ID \`${id}\`.`);
   }
 }
 

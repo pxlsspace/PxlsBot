@@ -32,7 +32,7 @@ async function execute(client: Discord.Client, message: Discord.Message) {
   }
 
   if (typeof coords !== 'undefined') {
-    message.channel.send(`<https://pxls.space/#x=${coords.x}&y=${coords.y}&scale=${coords.scale ?? 20}>`);
+    await message.channel.send(`<https://pxls.space/#x=${coords.x}&y=${coords.y}&scale=${coords.scale ?? 20}>`);
   }
 }
 

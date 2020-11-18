@@ -2,8 +2,10 @@ import * as Discord from 'discord.js';
 
 import { getDatabase } from '../index';
 import { Command } from '../command';
-import { getCommands, Color, getPrefix } from '../utils';
+import { getCommands, Color } from '../utils';
 import * as config from '../config';
+
+import { getPrefix } from './config';
 
 const database = getDatabase();
 
@@ -15,19 +17,21 @@ let commands: Command[];
 
 /**
  * An array of all the categories used by commands.
- * @property {string[]} categories The categories.
+ * @property {Object.<string, Command>} categories The categories.
  */
-const categories: string[] = [];
+const categories: { [category: string]: Command[] } = {};
 
 async function init() {
   commands = await getCommands(config.get('commandsPath', 'commands'));
   commands.forEach(command => {
-    categories[command.category] = categories[command.category] || [];
+    if (categories[command.category] == null) {
+      categories[command.category] = [];
+    }
     categories[command.category].push(command);
   });
 }
 
-async function execute(client: Discord.Client, message: Discord.Message) {
+async function execute(client: Discord.Client, message: Discord.Message): Promise<void> {
   const args = message.content.split(' ');
   const embed = new Discord.MessageEmbed();
   embed.setColor(Color.rainbow.skyblue.toColorResolvable());
@@ -48,7 +52,8 @@ async function execute(client: Discord.Client, message: Discord.Message) {
       command.aliases.includes(args.slice(1).join(' ').toLowerCase());
     });
     if (typeof command === 'undefined') {
-      return message.channel.send('Could not a find command with the name or alias "' + args[1] + '".');
+      await message.channel.send('Could not a find command with the name or alias "' + args[1] + '".');
+      return;
     }
     const permissions = new Discord.Permissions(command.permissions);
     let prefix = '';
@@ -60,11 +65,11 @@ async function execute(client: Discord.Client, message: Discord.Message) {
       **Usage:** \`${prefix}${command.usage}\`
       **Aliases:** [ \`${command.aliases.join('` | `')}\` ]
       **Required Permissions:** ${command.permissions}
-      ${permissions.toArray(false).map(v => ' - `' + v + '`\n')}
+      ${permissions.toArray(false).map(v => ' - `' + v + '`').join('\n')}
     `;
     embed.addField(command.name, helpText);
   }
-  return message.channel.send(embed);
+  await message.channel.send(embed);
 }
 
 export const command = new Command({

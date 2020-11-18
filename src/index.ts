@@ -31,7 +31,7 @@ export let events: EventObject[];
 export async function login(): Promise<void> {
   await client.login(config.get('token')).catch(err => {
     logger.error(err);
-    exit(1);
+    return exit(1);
   });
 }
 
@@ -46,7 +46,7 @@ async function main() {
   logger.debug('Testing database configuration...');
   try {
     const connection = await database.connect();
-    await connection.release();
+    connection.release();
     logger.debug('Database successfully pinged.');
   } catch (err) {
     logger.error(err);
@@ -77,6 +77,8 @@ export async function exit(code = 0): Promise<void> {
 }
 
 // Handles CTRL-C
-process.on('SIGINT', () => exit());
+process.on('SIGINT', () => {
+  void exit();
+});
 
-main();
+void main();

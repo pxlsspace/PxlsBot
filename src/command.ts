@@ -1,5 +1,4 @@
 import * as Discord from 'discord.js';
-import { Message } from 'discord.js';
 
 interface CommandData {
   id: string;
@@ -23,7 +22,7 @@ export class Command implements CommandData {
   public permissions = 0;
 
   init: () => Promise<void>;
-  execute: (client: Discord.Client, message: Discord.Message) => Promise<Message | void>;
+  execute: (client: Discord.Client, message: Discord.Message) => void | Promise<void>;
 
   constructor(data: CommandData) {
     this.id = data.id;

@@ -4,15 +4,20 @@
   "plugins": [
     "@typescript-eslint"
   ],
+  "parserOptions": {
+    "project": [ "tsconfig.json" ]
+  },
   "extends": [
     "semistandard",
-    "plugin:@typescript-eslint/recommended"
+    "plugin:@typescript-eslint/recommended",
+    "plugin:@typescript-eslint/recommended-requiring-type-checking"
   ],
   "env": {
     "node": true
   },
   "rules": {
     "no-console": ["error", {"allow": ["info", "warn", "error", "debug", "trace"]}],
-    "space-before-function-paren": "off"
+    "space-before-function-paren": "off",
+    "no-void": ["error", {"allowAsStatement": true}]
   }
 }

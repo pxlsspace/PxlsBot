@@ -2,10 +2,11 @@ import * as Discord from 'discord.js';
 
 import { client, getDatabase } from '../index';
 import * as logger from '../logger';
-import { getCommands, getPrefix } from '../utils';
-
+import { getCommands } from '../utils';
 import { Command } from '../command';
 import * as config from '../config';
+
+import { getPrefix } from '../commands/config';
 
 const database = getDatabase();
 
@@ -20,9 +21,12 @@ export const name = 'message';
 export async function init(): Promise<void> {
   logger.info('Initializing commands...');
   commands = await getCommands(config.get('commandsPath', 'commands'));
-  commands.forEach(async command => {
-    if (typeof command.init !== 'undefined') await command.init();
-  });
+
+  for (const command of commands) {
+    if (typeof command.init !== 'undefined') {
+      await command.init();
+    }
+  }
 }
 
 /**
@@ -59,17 +63,20 @@ export async function execute(message: Discord.Message): Promise<void> {
       return;
     }
     if (match.serverOnly && !message.guild) {
-      message.channel.send('This command may only be run in a guild.');
+      await message.channel.send('This command may only be run in a guild.');
       return;
     }
     if (!match.hasPermission(message.member)) {
       logger.debug(`${message.author.tag} attempted to execute command "${match.name}" in guild "${message.guild.name}" without permission.`);
-      message.channel.send('You do not have permission to run this command.');
+      await message.channel.send('You do not have permission to run this command.');
       return;
     }
     logger.debug(`${message.author.tag} is executing command "${match.name}" in guild "${message.guild.name}".`);
-    message.channel.startTyping();
-    match.execute(client, message);
+    await message.channel.startTyping();
+    const result = match.execute(client, message);
+    if (result instanceof Promise) {
+      await result;
+    }
     message.channel.stopTyping(true);
   }
 }
