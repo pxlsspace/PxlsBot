@@ -27,7 +27,7 @@ type Config = {
 let conf: Config;
 try {
   const confJSON = fs.readFileSync(joinPath(__dirname, '../config.json'), 'utf-8');
-  conf = JSON.parse(confJSON);
+  conf = JSON.parse(confJSON) as Config;
 } catch (err) {
   console.error('Cannot read configuration file', err);
   process.exit(1);

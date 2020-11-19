@@ -17,6 +17,6 @@ export async function execute(message: Discord.Message): Promise<void> {
   }
   const exec = coordsRegex.exec(message.content);
   if (exec && validateCoordinates(exec[1], exec[2], exec[3])) {
-    message.channel.send(`<${config.getGameURL()}/#x=${exec[1]}&y=${exec[2]}&scale=${exec[3] ?? '20'}>`);
+    await message.channel.send(`<${config.getGameURL()}/#x=${exec[1]}&y=${exec[2]}&scale=${exec[3] ?? '20'}>`);
   }
 }

@@ -1,11 +1,9 @@
-import * as fs from 'fs';
+import * as fs from 'fs/promises';
 import * as path from 'path';
 import * as Discord from 'discord.js';
-import * as pg from 'pg';
 
 import { Command } from './command';
 import * as logger from './logger';
-import * as config from './config';
 
 export type EventObject = {
   name: string,
@@ -23,19 +21,19 @@ export async function getEvents(eventsDirectory: string): Promise<EventObject[]>
   eventsDirectory = path.join(__dirname, eventsDirectory);
   let files: string[];
   try {
-    files = await fs.promises.readdir(eventsDirectory);
+    files = await fs.readdir(eventsDirectory);
   } catch (err) {
     logger.error('Could not read one or more files from ' + eventsDirectory + '.');
     logger.fatal(err);
   }
   files = files.filter(file => file.endsWith('.ts'));
-  const events = [];
+  const events: EventObject[] = [];
   for (let file of files) {
     file = file.replace('.ts', '');
     const pathToFile = path.join(eventsDirectory, file);
     try {
       // eslint-disable-next-line @typescript-eslint/no-var-requires
-      const required = require(pathToFile);
+      const required = require(pathToFile) as EventObject;
       if (typeof required.execute === 'function') {
         events.push({
           name: required.name || file,
@@ -51,6 +49,10 @@ export async function getEvents(eventsDirectory: string): Promise<EventObject[]>
   return events;
 }
 
+export type CommandFile = {
+  command: Command
+}
+
 /**
  * Returns a list of CommandBuilder instances from each JavaScript file in the
  * specified directory.
@@ -59,20 +61,20 @@ export async function getEvents(eventsDirectory: string): Promise<EventObject[]>
  */
 export async function getCommands(commandsDirectory: string): Promise<Command[]> {
   commandsDirectory = path.join(__dirname, commandsDirectory);
-  let files;
+  let files: string[];
   try {
-    files = fs.readdirSync(commandsDirectory);
+    files = await fs.readdir(commandsDirectory);
   } catch (err) {
     logger.error('Could not read one or more files from ' + commandsDirectory + '.');
     logger.fatal(err);
   }
   files = files.filter(file => file.endsWith('.ts'));
-  const commands = [];
+  const commands: Command[] = [];
   for (const file of files) {
     const pathToFile = path.join(commandsDirectory, file);
     try {
       // eslint-disable-next-line @typescript-eslint/no-var-requires
-      const required = require(pathToFile);
+      const required = require(pathToFile) as CommandFile;
       if (required.command instanceof Command) {
         commands.push(required.command);
       }
@@ -286,7 +288,7 @@ export function find(type: string, client: Discord.Client, message: Discord.Mess
       return Promise.resolve(findChannel(message, input));
     }
   }
-  return Promise.resolve(null);
+  return Promise.resolve(false);
 }
 
 /** Finds a user by the input. */
@@ -330,35 +332,6 @@ export const findChannel = (message: Discord.Message, input: string): Discord.Gu
     return message.guild.channels.cache.find(v => v.name.toLowerCase() === input.toLowerCase()) ?? false;
   }
 };
-
-/**
- * Returns the configured prefix for the guild, or the default one if none.
- * @param {pg.PoolClient} connection The connection.
- * @param {string} guildID The guild ID.
- * @returns {Promise<string>} The prefix.
- */
-export async function getPrefix(connection: pg.PoolClient, guildID: string): Promise<string> {
-  let prefix = config.get('prefix');
-  try {
-    const result = await connection.query(`
-      SELECT
-        prefix
-      FROM
-        config
-      WHERE
-        guild_id = $1
-    `, [
-      guildID
-    ]);
-    if (result.rowCount > 0) {
-      prefix = result.rows[0].prefix || prefix;
-    }
-  } catch (err) {
-    logger.error('Error getting prefix.');
-    logger.error(err);
-  }
-  return prefix;
-}
 
 /**
  * Truncates the specified text and appends chars to the end, if specified.
