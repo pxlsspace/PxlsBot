@@ -5,7 +5,9 @@ import * as logger from './logger';
 import { EventObject, getEvents } from './utils';
 import * as config from './config';
 
-export const client = new Discord.Client();
+export const client = new Discord.Client({
+  presence: config.get('presence')
+});
 
 /**
  * A database connection pool, set during initialization.
