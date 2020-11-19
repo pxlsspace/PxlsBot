@@ -13,6 +13,10 @@ type Config = {
   eventsPath?: string,
   commandsPath?: string,
   reconnectTimeout?: number,
+  gameURL?: {
+    secure?: boolean,
+    host?: string
+  },
   logging?: {
     saveToFile?: boolean,
     level?: string
@@ -32,4 +36,8 @@ try {
 export function get<K extends keyof Config, D = undefined>(key: K, def: D = undefined): Config[K] | D {
   const value = conf[key];
   return typeof value === 'undefined' ? def : value;
+}
+
+export function getGameURL(): string {
+  return `http${get('gameURL')?.secure ?? true ? 's' : ''}://${get('gameURL')?.host ?? 'pxls.space'}`;
 }

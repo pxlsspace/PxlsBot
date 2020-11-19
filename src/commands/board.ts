@@ -5,6 +5,7 @@ import fetch from 'node-fetch';
 import { Command } from '../command';
 import * as logger from '../logger';
 import { Color } from '../utils';
+import * as config from '../config';
 
 interface PxlsInfo {
   canvasCode: string;
@@ -19,10 +20,9 @@ interface PxlsInfo {
  * @returns {Promise<PxlsInfo>} The info.
  */
 async function getInfo(): Promise<PxlsInfo> {
-  const reqURL = 'https://pxls.space/info';
+  const reqURL = `${config.getGameURL()}/info`;
   const response = await fetch(reqURL);
   if (!response.ok) {
-    // TODO: Add configurable local fallback
     logger.error('Could not GET', reqURL, response.statusText);
     return null;
   }
@@ -43,28 +43,27 @@ enum BoardType {
  */
 async function getBoard(type: BoardType): Promise<Buffer | null> {
   // TODO: Configurable board source
-  let reqURL = 'https://pxls.space/';
+  let reqURL = config.getGameURL();
   switch (type) {
     case BoardType.Normal: {
-      reqURL += 'boarddata';
+      reqURL += '/boarddata';
       break;
     }
     case BoardType.Heatmap: {
-      reqURL += 'heatmap';
+      reqURL += '/heatmap';
       break;
     }
     case BoardType.Virginmap: {
-      reqURL += 'virginmap';
+      reqURL += '/virginmap';
       break;
     }
     case BoardType.Placemap: {
-      reqURL += 'placemap';
+      reqURL += '/placemap';
       break;
     }
   }
   const response = await fetch(reqURL);
   if (!response.ok) {
-    // TODO: Add configurable local fallback
     logger.error('Could not GET', reqURL, response.statusText);
     return null;
   }
