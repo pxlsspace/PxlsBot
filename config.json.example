@@ -5,9 +5,9 @@
 	"commandsPath": "commands",
 	"reconnectTimeout": 15000,
 	"gameURL": {
-    "secure": true,
-    "host": "pxls.space"
-  },
+		"secure": true,
+		"host": "pxls.space"
+	},
 	"logging": {
 		"saveToFile": true,
 		"level": "INFO"
