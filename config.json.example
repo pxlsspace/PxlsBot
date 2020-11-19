@@ -14,7 +14,7 @@
 	},
 	"presence": {
 		"status": "online",
-		"game": {
+		"activity": {
 			"name": "pxls.space",
 			"type": "PLAYING",
 			"url": "https://pxls.space/"
