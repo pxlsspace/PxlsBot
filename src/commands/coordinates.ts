@@ -1,6 +1,7 @@
 import * as Discord from 'discord.js';
 
 import { Command } from '../command';
+import * as config from '../config';
 
 const coordsRegex = /\(?([0-9]+)[., ]{1,2}([0-9]+)[., ]{0,2}([0-9]+)?x?\)?/i;
 
@@ -32,7 +33,7 @@ async function execute(client: Discord.Client, message: Discord.Message) {
   }
 
   if (typeof coords !== 'undefined') {
-    message.channel.send(`<https://pxls.space/#x=${coords.x}&y=${coords.y}&scale=${coords.scale ?? 20}>`);
+    message.channel.send(`<${config.getGameURL()}/#x=${coords.x}&y=${coords.y}&scale=${coords.scale ?? 20}>`);
   }
 }
 

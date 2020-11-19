@@ -1,6 +1,8 @@
 import * as Discord from 'discord.js';
 
 import { validateCoordinates } from '../commands/coordinates';
+import * as config from '../config';
+
 const coordsRegex = /\(([0-9]+)[., ]{1,2}([0-9]+)[., ]{0,2}([0-9]+)?x?\)/i;
 
 export const name = 'message';
@@ -15,6 +17,6 @@ export async function execute(message: Discord.Message): Promise<void> {
   }
   const exec = coordsRegex.exec(message.content);
   if (exec && validateCoordinates(exec[1], exec[2], exec[3])) {
-    message.channel.send(`<https://pxls.space/#x=${exec[1]}&y=${exec[2]}&scale=${exec[3] ?? '20'}>`);
+    message.channel.send(`<${config.getGameURL()}/#x=${exec[1]}&y=${exec[2]}&scale=${exec[3] ?? '20'}>`);
   }
 }
