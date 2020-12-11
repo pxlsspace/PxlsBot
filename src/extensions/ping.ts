@@ -1,8 +1,9 @@
 import * as Discord from 'discord.js';
-import { Command } from '../command';
+import { Client } from '../client';
+import { Command, Context } from '../command';
 import { Color } from '../utils';
 
-async function execute(client: Discord.Client, message: Discord.Message) {
+async function execute({ client, message }: Context) {
   const goodPingColor = new Color(0, 255, 0);
   const badPingColor = new Color(255, 0, 0);
   const embed = new Discord.MessageEmbed();
@@ -10,14 +11,14 @@ async function execute(client: Discord.Client, message: Discord.Message) {
     **Average Ping:** ${Math.floor(client.ws.ping)}ms
 
     **Per Shard:**
-    ${client.ws.shards.map(shard => `${shard.id}: ${Math.floor(shard.ping)}ms`).join('\n')}
+    ${message.client.ws.shards.map(shard => `${shard.id}: ${Math.floor(shard.ping)}ms`).join('\n')}
   `);
   const color = Color.lerp(client.ws.ping / 1000, goodPingColor, badPingColor);
   embed.setColor(color.toColorResolvable());
   await message.channel.send(embed);
 }
 
-export const command = new Command({
+const command = new Command({
   id: 'ping',
   name: 'Ping',
   category: 'Utility',
@@ -26,3 +27,7 @@ export const command = new Command({
   aliases: ['ping']
 });
 command.execute = execute;
+
+export function setup(client: Client): void {
+  client.registerCommand(command);
+}

@@ -2,8 +2,9 @@ import * as Discord from 'discord.js';
 import * as pg from 'pg';
 import { DatabaseError } from 'pg-protocol';
 
-import { getDatabase } from '../index';
-import { Command } from '../command';
+import { Client } from '../client';
+import * as database from '../database';
+import { Command, Context } from '../command';
 import * as logger from '../logger';
 import { Color } from '../utils';
 import * as config from '../config';
@@ -17,27 +18,9 @@ export type DatabaseGuildConfig = {
   /* eslint-enable camelcase */
 }
 
-const database = getDatabase();
-
 const columnWhitelist = [
   'prefix'
 ];
-
-async function init() {
-  try {
-    const connection = await database.connect();
-    await connection.query(`
-      CREATE TABLE IF NOT EXISTS config (
-        guild_id VARCHAR(18) NOT NULL PRIMARY KEY,
-        prefix TEXT
-      )
-    `);
-    connection.release();
-  } catch (err) {
-    logger.error('Could not insert "config" table.');
-    logger.fatal(err);
-  }
-}
 
 /**
  * Returns the configured prefix for the guild, or the default one if none.
@@ -68,14 +51,14 @@ export async function getPrefix(connection: pg.PoolClient, guildID: string): Pro
   return prefix;
 }
 
-async function execute(client: Discord.Client, message: Discord.Message): Promise<void> {
+async function execute({ message }: Context): Promise<void> {
   const args = message.content.split(' ');
   const embed = new Discord.MessageEmbed();
   embed.setColor(Color.rainbow.skyblue.toColorResolvable());
   if (args.length < 2) {
     // (prefix)config
     try {
-      const connection = await database.connect();
+      const connection = await database.getConnection();
       const result = await connection.query(`
         SELECT
           *
@@ -117,7 +100,7 @@ async function execute(client: Discord.Client, message: Discord.Message): Promis
       return;
     }
     try {
-      const connection = await database.connect();
+      const connection = await database.getConnection();
       const { rows } = await connection.query(`
         SELECT
           *
@@ -166,7 +149,7 @@ async function execute(client: Discord.Client, message: Discord.Message): Promis
       setVal = parseFloat(args[3]);
     }
     try {
-      const connection = await database.connect();
+      const connection = await database.getConnection();
       await insertAuditLog(connection, message, command.id);
       await connection.query(`
         UPDATE
@@ -190,7 +173,7 @@ async function execute(client: Discord.Client, message: Discord.Message): Promis
     }
   } else if (action === 'create') {
     try {
-      const connection = await database.connect();
+      const connection = await database.getConnection();
       await insertAuditLog(connection, message, command.id);
       await connection.query(`
         INSERT INTO
@@ -218,8 +201,7 @@ async function execute(client: Discord.Client, message: Discord.Message): Promis
     await message.channel.send(`Unknown subcommand \`${action}\`.`);
   }
 }
-
-export const command = new Command({
+const command = new Command({
   id: 'config',
   name: 'Configure',
   category: 'Utility',
@@ -229,5 +211,42 @@ export const command = new Command({
   serverOnly: true,
   permissions: Discord.Permissions.FLAGS.MANAGE_GUILD
 });
-command.init = init;
 command.execute = execute;
+
+export async function setup(client: Client): Promise<void> {
+  try {
+    const connection = await database.getConnection();
+    await connection.query(`
+      CREATE TABLE IF NOT EXISTS config (
+        guild_id VARCHAR(18) NOT NULL PRIMARY KEY,
+        prefix TEXT
+      )
+    `);
+    connection.release();
+  } catch (err) {
+    logger.error('Could not insert "config" table.');
+    logger.fatal(err);
+    return;
+  }
+
+  client.getCommandPrefixOffset = async (message: Discord.Message): Promise<number> => {
+    let prefix: string;
+    try {
+      const connection = await database.getConnection();
+      if (typeof message.guild === 'undefined') {
+        prefix = config.get('prefix');
+      } else {
+        prefix = await getPrefix(connection, message.guild.id);
+      }
+      connection.release();
+    } catch (err) {
+      logger.error('Could not get prefix from database.');
+      logger.fatal(err);
+    }
+
+    const start = message.content.indexOf(prefix);
+    return start === -1 ? -1 : start + prefix.length;
+  };
+
+  client.registerCommand(command);
+}

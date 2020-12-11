@@ -1,11 +1,11 @@
 import * as Discord from 'discord.js';
 import * as pg from 'pg';
 
-import { getDatabase } from '../index';
-import { Command } from '../command';
+import { Client } from '../client';
+import * as database from '../database';
+import { Command, Context } from '../command';
 import * as logger from '../logger';
-import { getCommands, Color, truncate } from '../utils';
-import * as config from '../config';
+import { Color, truncate } from '../utils';
 
 type DatabaseAuditLog = {
   /* eslint-disable camelcase */
@@ -17,8 +17,6 @@ type DatabaseAuditLog = {
   timestamp: Date
   /* eslint-enable camelcase */
 }
-
-const database = getDatabase();
 
 let commands: Command[];
 
@@ -48,34 +46,13 @@ export async function insertAuditLog(connection: pg.PoolClient, message: Discord
   }
 }
 
-async function init() {
-  commands = await getCommands(config.get('commandsPath', 'commands'));
-  try {
-    const connection = await database.connect();
-    await connection.query(`
-      CREATE TABLE IF NOT EXISTS auditlog (
-        id SERIAL NOT NULL PRIMARY KEY,
-        guild_id VARCHAR(18) NOT NULL,
-        user_id VARCHAR(18) NOT NULL,
-        command_id TEXT,
-        message TEXT,
-        timestamp TIMESTAMP NOT NULL DEFAULT NOW()
-      )
-    `);
-    connection.release();
-  } catch (err) {
-    logger.error('Could not insert "auditlog" table.');
-    logger.fatal(err);
-  }
-}
-
-async function execute(client: Discord.Client, message: Discord.Message): Promise<void> {
+async function execute({ client, message }: Context): Promise<void> {
   const args = message.content.split(' ');
   const embed = new Discord.MessageEmbed();
   embed.setColor(Color.rainbow.skyblue.toColorResolvable());
   if (args.length < 2) {
     try {
-      const connection = await database.connect();
+      const connection = await database.getConnection();
       const result = await connection.query(`
         SELECT
           *
@@ -133,7 +110,7 @@ async function execute(client: Discord.Client, message: Discord.Message): Promis
   }
   const id = parseInt(args[1]);
   try {
-    const connection = await database.connect();
+    const connection = await database.getConnection();
     const result = await connection.query(`
       SELECT
         *
@@ -178,5 +155,26 @@ export const command = new Command({
   serverOnly: true,
   permissions: Discord.Permissions.FLAGS.MANAGE_GUILD
 });
-command.init = init;
 command.execute = execute;
+
+export async function setup(client: Client): Promise<void> {
+  try {
+    const connection = await database.getConnection();
+    await connection.query(`
+      CREATE TABLE IF NOT EXISTS auditlog (
+        id SERIAL NOT NULL PRIMARY KEY,
+        guild_id VARCHAR(18) NOT NULL,
+        user_id VARCHAR(18) NOT NULL,
+        command_id TEXT,
+        message TEXT,
+        timestamp TIMESTAMP NOT NULL DEFAULT NOW()
+      )
+    `);
+    connection.release();
+  } catch (err) {
+    logger.error('Could not insert "auditlog" table.');
+    logger.fatal(err);
+  }
+
+  client.registerCommand(command);
+}

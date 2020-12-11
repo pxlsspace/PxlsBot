@@ -1,5 +1,7 @@
 import * as Discord from 'discord.js';
 
+import { Client } from './client';
+
 interface CommandData {
   id: string;
   name: string;
@@ -12,17 +14,17 @@ interface CommandData {
 }
 
 export class Command implements CommandData {
-  public id: string;
-  public name: string;
-  public category: string;
-  public description: string;
-  public usage: string;
-  public aliases: string[];
-  public serverOnly = false;
-  public permissions = 0;
+  readonly id: string;
+  readonly name: string;
+  readonly category: string;
+  readonly description: string;
+  readonly usage: string;
+  readonly aliases: string[];
+  readonly serverOnly?: boolean;
+  readonly permissions?: number;
 
-  init: () => Promise<void>;
-  execute: (client: Discord.Client, message: Discord.Message) => void | Promise<void>;
+  // eslint-disable-next-line no-use-before-define
+  execute: (context: Context) => Promise<void> | void;
 
   constructor(data: CommandData) {
     this.id = data.id;
@@ -41,5 +43,21 @@ export class Command implements CommandData {
    */
   hasPermission(member: Discord.GuildMember): boolean {
     return member.hasPermission(this.permissions);
+  }
+}
+
+export class Context {
+  message: Discord.Message;
+  command: Command;
+  argument: string;
+
+  get client(): Client {
+    return this.message.client as Client;
+  }
+
+  constructor(message: Discord.Message, command: Command, argument: string) {
+    this.message = message;
+    this.command = command;
+    this.argument = argument;
   }
 }
