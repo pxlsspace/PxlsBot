@@ -12,7 +12,7 @@ interface PxlsInfo {
   canvasCode: string;
   width: number;
   height: number;
-  palette: string[];
+  palette: {name: string, value: string}[];
   heatmapCooldown: number;
 }
 
@@ -109,7 +109,7 @@ async function execute({ message }: Context): Promise<void> {
     await message.channel.send(embed);
     return;
   }
-  const colorPalette = info.palette.map(hex => Color.fromHex(hex));
+  const colorPalette = info.palette.map(group => Color.fromHex(group.value));
   const png = new PNG({
     width: info.width,
     height: info.height,
