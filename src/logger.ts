@@ -23,7 +23,7 @@ export function getDateTime(date: Date = new Date(), addTimezone = false): strin
 }
 
 /** Absolute path to the logs directory. */
-const logsPath = path.join(__dirname, 'logs');
+const logsPath = path.join(__dirname, '../logs');
 
 /**
  * Whether or not logs can be saved to a file.
