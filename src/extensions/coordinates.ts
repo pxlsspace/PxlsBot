@@ -1,12 +1,24 @@
 import * as Discord from 'discord.js';
 
-import { Command } from '../command';
+import { Client } from '../client';
+import { Command, Context } from '../command';
 import * as config from '../config';
 
-const coordsRegex = /\(?([0-9]+)[., ]{1,2}([0-9]+)[., ]{0,2}([0-9]+)?x?\)?/i;
+const coordsInsideRegex = /([0-9]+)[., ]{1,2}([0-9]+)[., ]{0,2}([0-9]+)?x?/i;
+const coordsFullRegex = new RegExp(`\\(${coordsInsideRegex.source}\\)`, coordsInsideRegex.flags);
 
-async function execute(client: Discord.Client, message: Discord.Message) {
-  const args = message.content.split(' ').slice(1);
+async function handleMessage(message: Discord.Message): Promise<void> {
+  if (message.author.bot) {
+    return;
+  }
+  const exec = coordsFullRegex.exec(message.content);
+  if (exec && validateCoordinates(exec[1], exec[2], exec[3])) {
+    await message.channel.send(`<${config.getGameURL()}/#x=${exec[1]}&y=${exec[2]}&scale=${exec[3] ?? '20'}>`);
+  }
+}
+
+async function execute({ message, argument }: Context) {
+  const args = argument.split(' ');
   if (!args.length) return;
 
   let coords: {
@@ -20,8 +32,8 @@ async function execute(client: Discord.Client, message: Discord.Message) {
       y: args[1],
       scale: args[2]
     };
-  } else if (args[0].includes(',') && args[0].charAt(0) !== '(') { // abort if we have a paranthesis at pos 0 because the message-coordinate.js hook will handle it for us.
-    const exec = coordsRegex.exec(args[0]);
+  } else if (args[0].includes(',') && args[0].charAt(0) !== '(') { // abort if we have a paranthesis at pos 0 because the event handler above will handle it for us.
+    const exec = coordsInsideRegex.exec(args[0]);
     if (exec == null) return;
     if (validateCoordinates(exec[1], exec[2], exec[3])) {
       coords = {
@@ -39,11 +51,11 @@ async function execute(client: Discord.Client, message: Discord.Message) {
 
 /**
  * Verifies that the given x/y/scale are finite and <= $maximum
- * @param {string|number} x The x component
- * @param {string|number} y The y component
- * @param {string|number} [scale=20] The scale component
- * @param {number} [maximum=1000000] The maximum intval that x/y/scale can be
- * @returns {boolean} Whether or not the arguments are valid
+ * @param x The x component
+ * @param y The y component
+ * @param scale The scale component
+ * @param maximum The maximum intval that x/y/scale can be
+ * @returns Whether or not the arguments are valid
  */
 export function validateCoordinates(x: string | number, y: string | number, scale: string | number, maximum = 1000000): boolean {
   if (Number.isNaN(Number(scale))) {
@@ -73,3 +85,11 @@ export const command = new Command({
   aliases: ['coords', 'coordinates']
 });
 command.execute = execute;
+
+export function setup(client: Client): void {
+  client.on('message', (...args) => {
+    void handleMessage(...args);
+  });
+
+  client.registerCommand(command);
+}

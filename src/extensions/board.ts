@@ -2,10 +2,11 @@ import * as Discord from 'discord.js';
 import { PNG } from 'pngjs';
 import fetch from 'node-fetch';
 
-import { Command } from '../command';
+import { Command, Context } from '../command';
 import * as logger from '../logger';
 import { Color } from '../utils';
 import * as config from '../config';
+import { Client } from '../client';
 
 interface PxlsInfo {
   canvasCode: string;
@@ -74,7 +75,7 @@ const heatmapColor = new Color(205, 92, 92);
 const virginmapColor = new Color(0, 255, 0);
 const placemapColor = Color.rainbow.white;
 
-async function execute(client: Discord.Client, message: Discord.Message): Promise<void> {
+async function execute({ message }: Context): Promise<void> {
   const args = message.content.split(' ');
   const embed = new Discord.MessageEmbed();
   embed.setTimestamp();
@@ -175,3 +176,7 @@ export const command = new Command({
   aliases: ['board', 'boarddata', 'boardmap', 'canvas']
 });
 command.execute = execute;
+
+export function setup(client: Client): void {
+  client.registerCommand(command);
+}

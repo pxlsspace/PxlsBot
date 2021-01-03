@@ -1,8 +1,6 @@
 {
 	"token": "",
 	"prefix": "!",
-	"eventsPath": "events",
-	"commandsPath": "commands",
 	"reconnectTimeout": 15000,
 	"gameURL": {
 		"secure": true,

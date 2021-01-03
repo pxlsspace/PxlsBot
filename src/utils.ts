@@ -1,90 +1,4 @@
-import * as fs from 'fs/promises';
-import * as path from 'path';
 import * as Discord from 'discord.js';
-
-import { Command } from './command';
-import * as logger from './logger';
-
-export type EventObject = {
-  name: string,
-  init?: () => unknown,
-  execute: (...args: unknown[]) => unknown
-}
-
-/**
- * Returns a list of event objects from each JavaScript file in the specified
- * directory.
- * @param {string} eventsDirectory The event directory.
- * @returns {Promise<{}[]>} The events.
- */
-export async function getEvents(eventsDirectory: string): Promise<EventObject[]> {
-  eventsDirectory = path.join(__dirname, eventsDirectory);
-  let files: string[];
-  try {
-    files = await fs.readdir(eventsDirectory);
-  } catch (err) {
-    logger.error('Could not read one or more files from ' + eventsDirectory + '.');
-    logger.fatal(err);
-  }
-  files = files.filter(file => file.endsWith('.ts'));
-  const events: EventObject[] = [];
-  for (let file of files) {
-    file = file.replace('.ts', '');
-    const pathToFile = path.join(eventsDirectory, file);
-    try {
-      // eslint-disable-next-line @typescript-eslint/no-var-requires
-      const required = require(pathToFile) as EventObject;
-      if (typeof required.execute === 'function') {
-        events.push({
-          name: required.name || file,
-          init: required.init,
-          execute: required.execute
-        });
-      }
-    } catch (err) {
-      logger.error('Could not require ' + pathToFile + '.');
-      logger.fatal(err);
-    }
-  }
-  return events;
-}
-
-export type CommandFile = {
-  command: Command
-}
-
-/**
- * Returns a list of CommandBuilder instances from each JavaScript file in the
- * specified directory.
- * @param {string} commandsDirectory The command directory.
- * @returns {Promise<CommandBuilder[]>} The commands.
- */
-export async function getCommands(commandsDirectory: string): Promise<Command[]> {
-  commandsDirectory = path.join(__dirname, commandsDirectory);
-  let files: string[];
-  try {
-    files = await fs.readdir(commandsDirectory);
-  } catch (err) {
-    logger.error('Could not read one or more files from ' + commandsDirectory + '.');
-    logger.fatal(err);
-  }
-  files = files.filter(file => file.endsWith('.ts'));
-  const commands: Command[] = [];
-  for (const file of files) {
-    const pathToFile = path.join(commandsDirectory, file);
-    try {
-      // eslint-disable-next-line @typescript-eslint/no-var-requires
-      const required = require(pathToFile) as CommandFile;
-      if (required.command instanceof Command) {
-        commands.push(required.command);
-      }
-    } catch (err) {
-      logger.error('Could not require ' + pathToFile + '.');
-      logger.fatal(err);
-    }
-  }
-  return commands;
-}
 
 /**
  * Multiplies the specified numbers.
@@ -350,4 +264,46 @@ export function truncate(x: string, max: number, chars: string, inward: boolean)
     retVal = x.slice(0, max - (inward ? chars.length : 0)) + append;
   }
   return retVal;
+}
+
+/**
+ * Splits text into chunks separated by a separator, up to n times.
+ *
+ * This is similar to s.split(sep, n), but if the text doesn't contain
+ * enough of the separator the rest of the string will be the last element
+ * of the result.
+ * @param {string} s The text to split.
+ * @param {number} sep The separator.
+ * @param {string} n The amount of times to split.
+ * @return {string[]} An array of 1 to n chunks from the original text.
+ */
+export function splitN(s: string, sep: string, n: number): string[] {
+  const acc: string[] = [];
+  let left = s;
+  for (let i = 0; i < n; i++) {
+    const next = left.indexOf(sep);
+    if (next === -1) {
+      acc.push(left);
+      break;
+    }
+
+    acc.push(left.substring(0, next));
+    left = left.substr(next + 1);
+  }
+  acc.push(left);
+  return acc;
+}
+
+function errorWithReadOnly(): never {
+  throw new Error('object is read-only');
+}
+
+// eslint-disable-next-line @typescript-eslint/ban-types
+export function readOnlyViewOf<T extends object>(obj: T): T {
+  return new Proxy(obj, {
+    defineProperty: errorWithReadOnly,
+    deleteProperty: errorWithReadOnly,
+    setPrototypeOf: errorWithReadOnly,
+    set: errorWithReadOnly
+  });
 }
