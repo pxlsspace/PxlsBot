@@ -49,6 +49,9 @@ export class Client extends Discord.Client {
   }
 
   private async handleMessageCommand(message: Discord.Message) {
+    if (message.partial) {
+      return;
+    }
     if (message.author.bot) {
       return;
     }
