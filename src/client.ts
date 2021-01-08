@@ -45,7 +45,7 @@ export class Client extends Discord.Client {
   getCommandPrefixOffset(message: Discord.Message): Promise<number> | number {
     const prefix = config.get('prefix', '!');
     const start = message.content.indexOf(prefix);
-    return start === -1 ? -1 : start + prefix.length;
+    return start !== 0 ? -1 : start + prefix.length;
   }
 
   private async handleMessageCommand(message: Discord.Message) {
