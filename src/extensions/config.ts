@@ -11,29 +11,60 @@ import * as config from '../config';
 
 import { insertAuditLog } from './auditlog';
 
-export type DatabaseGuildConfig = {
-  /* eslint-disable camelcase */
-  guild_id: string,
-  prefix: string | null
-  /* eslint-enable camelcase */
+export type ConfigValueDefinition<DBObjectType, JSObjectType> = {
+  dbType: string,
+  default?: JSObjectType,
+  stringToDatabase: (client: Client, value: string) => DBObjectType | Promise<DBObjectType>,
+  databaseToObject: (client: Client, value: DBObjectType) => JSObjectType | Promise<JSObjectType>,
+  objectToString?: (value: JSObjectType) => string | Promise<string>
 }
 
-const columnWhitelist = [
-  'prefix'
-];
+const columns = {
+  /* eslint-disable quote-props */
+  'prefix': {
+    dbType: 'TEXT',
+    get default() {
+      return config.get('prefix');
+    },
+    stringToDatabase: (_client, value) => value,
+    databaseToObject: (_client, value) => value
+  } as ConfigValueDefinition<string, string>
+  /* eslint-enable quote-props */
+} as const;
+
+type ColumnDBObjectType<CN extends keyof typeof columns> =
+  typeof columns[CN] extends ConfigValueDefinition<infer T, unknown> ? T : never;
+type ColumnJSObjectType<CN extends keyof typeof columns> =
+  typeof columns[CN] extends ConfigValueDefinition<unknown, infer T> ? T : never;
+
+export type DatabaseGuildConfig = {
+  // eslint-disable-next-line camelcase
+  guild_id: string
+} & {
+  [CN in keyof typeof columns]: ColumnDBObjectType<CN>
+}
 
 /**
- * Returns the configured prefix for the guild, or the default one if none.
+ * Returns the value of a config column for the guild.
  * @param {pg.PoolClient} connection The connection.
+ * @param {Client} client The Discord Client.
  * @param {string} guildID The guild ID.
- * @returns {Promise<string>} The prefix.
+ * @returns The config value, or undefined if the guild has not setup config and no default is set.
  */
-export async function getPrefix(connection: pg.PoolClient, guildID: string): Promise<string> {
-  let prefix = config.get('prefix');
+export async function get<CN extends keyof typeof columns>(
+  connection: pg.PoolClient,
+  client: Client,
+  guildID: string,
+  columnName: CN
+): Promise<ColumnJSObjectType<CN> | undefined> {
+  type DBObjectType = ColumnDBObjectType<CN>;
+  type JSObjectType = ColumnJSObjectType<CN>;
+  const columnDefinition = columns[columnName] as ConfigValueDefinition<DBObjectType, JSObjectType>;
+  let result: JSObjectType | undefined = columnDefinition.default;
   try {
-    const result = await connection.query(`
+    const { rows } = await connection.query(`
       SELECT
-        prefix
+        ${columnName}
       FROM
         config
       WHERE
@@ -41,17 +72,49 @@ export async function getPrefix(connection: pg.PoolClient, guildID: string): Pro
     `, [
       guildID
     ]);
-    if (result.rowCount > 0) {
-      prefix = (result.rows[0] as DatabaseGuildConfig).prefix || prefix;
+    if (rows.length > 0) {
+      const dbValue = (rows[0] as DatabaseGuildConfig)[columnName] as DBObjectType;
+      const jsValue = await columnDefinition.databaseToObject(client, dbValue);
+      result = jsValue ?? columnDefinition.default ?? null;
     }
   } catch (err) {
-    logger.error('Error getting prefix.');
+    logger.error(`Error getting ${columnName} config value for guild ${guildID}.`);
     logger.error(err);
   }
-  return prefix;
+  return result;
 }
 
-async function execute({ message }: Context): Promise<void> {
+/**
+ * Returns the configured prefix for the guild, or the default one if none.
+ * @param {pg.PoolClient} connection The connection.
+ * @param {Client} client The Discord Client.
+ * @param {string} guildID The guild ID.
+ * @returns {Promise<string>} The prefix.
+ */
+export const getPrefix = (
+  connection: pg.PoolClient,
+  client: Client,
+  guildID: string
+): Promise<string> => get(connection, client, guildID, 'prefix');
+
+async function safeObjectToString<JSObjectType>(
+  columnDefinition: ConfigValueDefinition<unknown, JSObjectType>,
+  value: JSObjectType
+) {
+  return value != null
+    ? await columnDefinition.objectToString?.(value) ?? String(value)
+    : '<unset>';
+}
+
+async function formatColumn(
+  columnName: keyof typeof columns,
+  value: ColumnJSObjectType<typeof columnName>
+) {
+  const columnDefinition: ConfigValueDefinition<unknown, typeof value> = columns[columnName];
+  return `${columnName} : ${await safeObjectToString(columnDefinition, value)}`;
+}
+
+async function execute({ client, message }: Context): Promise<void> {
   const args = message.content.split(' ');
   const embed = new Discord.MessageEmbed();
   embed.setColor(Color.rainbow.skyblue.toColorResolvable());
@@ -70,17 +133,20 @@ async function execute({ message }: Context): Promise<void> {
         message.guild.id
       ]);
       if (result.rowCount < 1) {
-        const prefix = await getPrefix(connection, message.guild.id);
+        const prefix = await getPrefix(connection, client, message.guild.id);
         connection.release();
         await message.channel.send(`No configurations were found for the guild. Try creating one with \`${prefix}config create\`.`);
         return;
       }
       connection.release();
       const guildConfig = result.rows[0] as DatabaseGuildConfig;
-      const formattedKeyValues = Object.keys(guildConfig).filter(key => {
-        return columnWhitelist.includes(key);
-      }).map(key => `${key} : \`${guildConfig[key as keyof DatabaseGuildConfig]}\``).join('\n');
-      embed.setDescription(formattedKeyValues);
+      const formattedColumnPromises = Object.keys(guildConfig)
+        .filter(key => Object.keys(columns).includes(key))
+        .map(key => {
+          const columnName = key as keyof typeof columns;
+          return formatColumn(columnName, guildConfig[columnName] ?? columns[columnName].default);
+        });
+      embed.setDescription((await Promise.all(formattedColumnPromises)).join('\n'));
       await message.channel.send(embed);
       return;
     } catch (err) {
@@ -95,35 +161,23 @@ async function execute({ message }: Context): Promise<void> {
       await message.channel.send('You must specify a config key.');
       return;
     }
-    if (!columnWhitelist.includes(args[2].toLowerCase())) {
+    const columnName = args[2].toLowerCase() as keyof typeof columns;
+    if (!Object.keys(columns).includes(columnName)) {
       await message.channel.send('The specified config key is not on the column whitelist.');
       return;
     }
+    type JSObjectType = ColumnJSObjectType<typeof columnName>;
     try {
       const connection = await database.getConnection();
-      const { rows } = await connection.query(`
-        SELECT
-          *
-        FROM
-          config
-        WHERE
-          guild_id = $1
-      `, [
-        message.guild.id
-      ]);
-      if (rows.length < 1) {
-        const prefix = await getPrefix(connection, message.guild.id);
+      const value: JSObjectType = await get(connection, client, message.guild.id, columnName);
+      if (typeof value === 'undefined') {
+        const prefix = await getPrefix(connection, client, message.guild.id);
         connection.release();
         await message.channel.send(`No configurations were found for the guild. Try creating one with \`${prefix}config create\`.`);
         return;
       }
       connection.release();
-      const guildConfig = rows[0] as DatabaseGuildConfig;
-      const formattedKeyValue = Object.keys(guildConfig).filter(key => {
-        return key.toLowerCase() === args[2].toLowerCase() &&
-          columnWhitelist.includes(key);
-      }).map(key => `${key} : \`${guildConfig[key as keyof DatabaseGuildConfig]}\``).join('\n');
-      embed.setDescription(formattedKeyValue);
+      embed.setDescription(await formatColumn(columnName, value));
       await message.channel.send(embed);
       return;
     } catch (err) {
@@ -135,8 +189,8 @@ async function execute({ message }: Context): Promise<void> {
       await message.channel.send('You must specify a config key.');
       return;
     }
-    const key = args[2].toLowerCase();
-    if (!columnWhitelist.includes(key)) {
+    const columnName = args[2].toLowerCase() as keyof typeof columns;
+    if (!Object.keys(columns).includes(columnName)) {
       await message.channel.send('The specified config key is not on the column whitelist.');
       return;
     }
@@ -144,27 +198,42 @@ async function execute({ message }: Context): Promise<void> {
       await message.channel.send('You must specify a value.');
       return;
     }
-    let setVal: string | number = args[3];
-    if (!isNaN(Number(args[3]))) {
-      setVal = parseFloat(args[3]);
+    // NOTE(netux): there is probably a better way of do this...
+    type DBObjectType = ColumnDBObjectType<typeof columnName>;
+    type JSObjectType = ColumnJSObjectType<typeof columnName>;
+    const columnDefinition: ConfigValueDefinition<DBObjectType, JSObjectType> = columns[columnName];
+    let valDatabaseObj: DBObjectType;
+    try {
+      valDatabaseObj = await columnDefinition.stringToDatabase(client, args[3]);
+    } catch (err) {
+      await message.channel.send(`The specified value is invalid: ${err instanceof Error ? err.message : '<unknown error>'}.`);
+      return;
     }
+
     try {
       const connection = await database.getConnection();
       await insertAuditLog(connection, message, command.id);
-      await connection.query(`
+      const { rowCount } = await connection.query(`
         UPDATE
           config
         SET
-          ${key} = $1
+          ${columnName} = $1
         WHERE
           guild_id = $2
       `, [
-        setVal,
+        valDatabaseObj,
         message.guild.id
       ]);
+      if (rowCount === 0) {
+        const prefix = await getPrefix(connection, client, message.guild.id);
+        connection.release();
+        await message.channel.send(`No configurations were found for the guild. Try creating one with \`${prefix}config create\`.`);
+        return;
+      }
       connection.release();
       embed.setColor(Color.rainbow.green.toColorResolvable());
-      embed.setDescription(`Config key \`${key}\` has been set to \`${setVal}\`.`);
+      const valObj: JSObjectType = await columnDefinition.databaseToObject(client, valDatabaseObj);
+      embed.setDescription(`Config key \`${columnName}\` has been set to ${await safeObjectToString(columnDefinition, valObj)}.`);
       await message.channel.send(embed);
       return;
     } catch (err) {
@@ -219,7 +288,7 @@ export async function setup(client: Client): Promise<void> {
     await connection.query(`
       CREATE TABLE IF NOT EXISTS config (
         guild_id VARCHAR(18) NOT NULL PRIMARY KEY,
-        prefix TEXT
+        ${Object.entries(columns).map(([name, { dbType }]) => `${name} ${dbType}`).join(',')}
       )
     `);
     connection.release();
@@ -236,7 +305,7 @@ export async function setup(client: Client): Promise<void> {
       if (typeof message.guild === 'undefined') {
         prefix = config.get('prefix');
       } else {
-        prefix = await getPrefix(connection, message.guild.id);
+        prefix = await getPrefix(connection, client, message.guild.id);
       }
       connection.release();
     } catch (err) {
