@@ -116,158 +116,151 @@ async function formatColumn(
 
 async function execute({ client, message }: Context): Promise<void> {
   const args = message.content.split(' ');
-  const embed = new Discord.MessageEmbed();
-  embed.setColor(Color.rainbow.skyblue.toColorResolvable());
-  if (args.length < 2) {
-    // (prefix)config
+  const embed = new Discord.MessageEmbed({
+    color: Color.rainbow.skyblue.toColorResolvable()
+  });
+  let connection: pg.PoolClient;
+  try {
+    connection = await database.getConnection();
     try {
-      const connection = await database.getConnection();
-      const result = await connection.query(`
-        SELECT
-          *
-        FROM
-          config
-        WHERE
-          guild_id = $1
-      `, [
-        message.guild.id
-      ]);
-      if (result.rowCount < 1) {
-        const prefix = await getPrefix(connection, client, message.guild.id);
-        connection.release();
-        await message.channel.send(`No configurations were found for the guild. Try creating one with \`${prefix}config create\`.`);
-        return;
-      }
-      connection.release();
-      const guildConfig = result.rows[0] as DatabaseGuildConfig;
-      const formattedColumnPromises = Object.keys(guildConfig)
-        .filter(key => Object.keys(columns).includes(key))
-        .map(key => {
-          const columnName = key as keyof typeof columns;
-          return formatColumn(columnName, guildConfig[columnName] ?? columns[columnName].default);
-        });
-      embed.setDescription((await Promise.all(formattedColumnPromises)).join('\n'));
-      await message.channel.send(embed);
-      return;
-    } catch (err) {
-      logger.error(err);
-      await message.channel.send('Could not get config. Details have been logged.');
-      return;
-    }
-  }
-  const action = args[1].toLowerCase();
-  if (action === 'get') {
-    if (args.length < 3) {
-      await message.channel.send('You must specify a config key.');
-      return;
-    }
-    const columnName = args[2].toLowerCase() as keyof typeof columns;
-    if (!Object.keys(columns).includes(columnName)) {
-      await message.channel.send('The specified config key is not on the column whitelist.');
-      return;
-    }
-    type JSObjectType = ColumnJSObjectType<typeof columnName>;
-    try {
-      const connection = await database.getConnection();
-      const value: JSObjectType = await get(connection, client, message.guild.id, columnName);
-      if (typeof value === 'undefined') {
-        const prefix = await getPrefix(connection, client, message.guild.id);
-        connection.release();
-        await message.channel.send(`No configurations were found for the guild. Try creating one with \`${prefix}config create\`.`);
-        return;
-      }
-      connection.release();
-      embed.setDescription(await formatColumn(columnName, value));
-      await message.channel.send(embed);
-      return;
-    } catch (err) {
-      logger.error(err);
-      await message.channel.send('Could not get config key. Details have been logged.');
-    }
-  } else if (action === 'set') {
-    if (args.length < 3) {
-      await message.channel.send('You must specify a config key.');
-      return;
-    }
-    const columnName = args[2].toLowerCase() as keyof typeof columns;
-    if (!Object.keys(columns).includes(columnName)) {
-      await message.channel.send('The specified config key is not on the column whitelist.');
-      return;
-    }
-    if (args.length < 4) {
-      await message.channel.send('You must specify a value.');
-      return;
-    }
-    // NOTE(netux): there is probably a better way of do this...
-    type DBObjectType = ColumnDBObjectType<typeof columnName>;
-    type JSObjectType = ColumnJSObjectType<typeof columnName>;
-    const columnDefinition: ConfigValueDefinition<DBObjectType, JSObjectType> = columns[columnName];
-    let valDatabaseObj: DBObjectType;
-    try {
-      valDatabaseObj = await columnDefinition.stringToDatabase(client, args[3]);
-    } catch (err) {
-      await message.channel.send(`The specified value is invalid: ${err instanceof Error ? err.message : '<unknown error>'}.`);
-      return;
-    }
-
-    try {
-      const connection = await database.getConnection();
-      await insertAuditLog(connection, message, command.id);
+      // Create default configuration if it doesn't exist.
       const { rowCount } = await connection.query(`
-        UPDATE
-          config
-        SET
-          ${columnName} = $1
-        WHERE
-          guild_id = $2
-      `, [
-        valDatabaseObj,
-        message.guild.id
-      ]);
-      if (rowCount === 0) {
-        const prefix = await getPrefix(connection, client, message.guild.id);
-        connection.release();
-        await message.channel.send(`No configurations were found for the guild. Try creating one with \`${prefix}config create\`.`);
-        return;
-      }
-      connection.release();
-      embed.setColor(Color.rainbow.green.toColorResolvable());
-      const valObj: JSObjectType = await columnDefinition.databaseToObject(client, valDatabaseObj);
-      embed.setDescription(`Config key \`${columnName}\` has been set to ${await safeObjectToString(columnDefinition, valObj)}.`);
-      await message.channel.send(embed);
-      return;
-    } catch (err) {
-      logger.error(err);
-      await message.channel.send('Could not set config key. Details have been logged.');
-    }
-  } else if (action === 'create') {
-    try {
-      const connection = await database.getConnection();
-      await insertAuditLog(connection, message, command.id);
-      await connection.query(`
         INSERT INTO
           config
           (guild_id)
         VALUES
           ($1)
+        ON CONFLICT DO NOTHING
       `, [
         message.guild.id
       ]);
-      connection.release();
-      embed.setColor(Color.rainbow.green.toColorResolvable());
-      embed.setDescription('Default configuration has been generated.');
-      await message.channel.send(embed);
-      return;
+      if (rowCount > 0) {
+        await message.channel.send('Default configuration has been generated.');
+      }
     } catch (err) {
-      if ((err as DatabaseError).code === '23505') { // Duplicate entry
-        await message.channel.send('Config entry already exists.');
-      } else {
+      logger.error(err);
+      await message.channel.send('Could not create config entry. Details have been logged.');
+      return;
+    }
+
+    if (args.length < 2) {
+      // (prefix)config
+      try {
+        const { rows } = await connection.query(`
+          SELECT
+            *
+          FROM
+            config
+          WHERE
+            guild_id = $1
+        `, [
+          message.guild.id
+        ]);
+        if (rows.length === 0) {
+          await message.channel.send('No configurations were found for the guild. Try running this command again.');
+          return;
+        }
+        const guildConfig = rows[0] as DatabaseGuildConfig;
+        const formattedColumnPromises = Object.keys(guildConfig)
+          .filter(key => Object.keys(columns).includes(key))
+          .map(key => {
+            const columnName = key as keyof typeof columns;
+            return formatColumn(columnName, guildConfig[columnName] ?? columns[columnName].default);
+          });
+        embed.setDescription((await Promise.all(formattedColumnPromises)).join('\n'));
+        await message.channel.send(embed);
+        return;
+      } catch (err) {
         logger.error(err);
-        await message.channel.send('Could not create config entry. Details have been logged.');
+        await message.channel.send('Could not get config. Details have been logged.');
+        return;
       }
     }
-  } else {
-    await message.channel.send(`Unknown subcommand \`${action}\`.`);
+    const action = args[1].toLowerCase();
+    if (action === 'get') {
+      if (args.length < 3) {
+        await message.channel.send('You must specify a config key.');
+        return;
+      }
+      const columnName = args[2].toLowerCase() as keyof typeof columns;
+      if (!Object.keys(columns).includes(columnName)) {
+        await message.channel.send('The specified config key is not on the column whitelist.');
+        return;
+      }
+      type JSObjectType = ColumnJSObjectType<typeof columnName>;
+      try {
+        const value: JSObjectType = await get(connection, client, message.guild.id, columnName);
+        if (typeof value === 'undefined') {
+          const prefix = await getPrefix(connection, client, message.guild.id);
+          await message.channel.send(`No configurations were found for the guild. Try creating one with \`${prefix}config create\`.`);
+          return;
+        }
+        embed.setDescription(await formatColumn(columnName, value));
+        await message.channel.send(embed);
+        return;
+      } catch (err) {
+        logger.error(err);
+        await message.channel.send('Could not get config key. Details have been logged.');
+      }
+    } else if (action === 'set') {
+      if (args.length < 3) {
+        await message.channel.send('You must specify a config key.');
+        return;
+      }
+      const columnName = args[2].toLowerCase() as keyof typeof columns;
+      if (!Object.keys(columns).includes(columnName)) {
+        await message.channel.send('The specified config key is not on the column whitelist.');
+        return;
+      }
+      if (args.length < 4) {
+        await message.channel.send('You must specify a value.');
+        return;
+      }
+      // NOTE(netux): there is probably a better way of do this...
+      type DBObjectType = ColumnDBObjectType<typeof columnName>;
+      type JSObjectType = ColumnJSObjectType<typeof columnName>;
+      const columnDefinition: ConfigValueDefinition<DBObjectType, JSObjectType> = columns[columnName];
+      let valDatabaseObj: DBObjectType;
+      try {
+        valDatabaseObj = await columnDefinition.stringToDatabase(client, args[3]);
+      } catch (err) {
+        await message.channel.send(`The specified value is invalid: ${err instanceof Error ? err.message : '<unknown error>'}.`);
+        return;
+      }
+
+      try {
+        await insertAuditLog(connection, message, command.id);
+        const { rowCount } = await connection.query(`
+          UPDATE
+            config
+          SET
+            ${columnName} = $1
+          WHERE
+            guild_id = $2
+        `, [
+          valDatabaseObj,
+          message.guild.id
+        ]);
+        if (rowCount === 0) {
+          await message.channel.send('No configurations were found for the guild. Try running this command again.');
+          return;
+        }
+        embed.setColor(Color.rainbow.green.toColorResolvable());
+        const valObj: JSObjectType = await columnDefinition.databaseToObject(client, valDatabaseObj);
+        embed.setDescription(`Config key \`${columnName}\` has been set to ${await safeObjectToString(columnDefinition, valObj)}.`);
+        await message.channel.send(embed);
+        return;
+      } catch (err) {
+        logger.error(err);
+        await message.channel.send('Could not set config key. Details have been logged.');
+      }
+    } else {
+      await message.channel.send(`Unknown subcommand \`${action}\`.`);
+    }
+  } finally {
+    if (connection != null) {
+      connection.release();
+    }
   }
 }
 const command = new Command({
