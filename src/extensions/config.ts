@@ -307,7 +307,7 @@ export async function setup(client: Client): Promise<void> {
     }
 
     const start = message.content.indexOf(prefix);
-    return start === -1 ? -1 : start + prefix.length;
+    return start !== 0 ? -1 : start + prefix.length;
   };
 
   client.registerCommand(command);
