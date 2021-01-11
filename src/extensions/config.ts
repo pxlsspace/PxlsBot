@@ -119,9 +119,7 @@ async function execute({ client, message }: Context): Promise<void> {
   const embed = new Discord.MessageEmbed({
     color: Color.rainbow.skyblue.toColorResolvable()
   });
-  let connection: pg.PoolClient;
-  try {
-    connection = await database.getConnection();
+  await database.withConnection(async (connection) => {
     try {
       // Create default configuration if it doesn't exist.
       const { rowCount } = await connection.query(`
@@ -257,11 +255,7 @@ async function execute({ client, message }: Context): Promise<void> {
     } else {
       await message.channel.send(`Unknown subcommand \`${action}\`.`);
     }
-  } finally {
-    if (connection != null) {
-      connection.release();
-    }
-  }
+  });
 }
 const command = new Command({
   id: 'config',
@@ -277,14 +271,12 @@ command.execute = execute;
 
 export async function setup(client: Client): Promise<void> {
   try {
-    const connection = await database.getConnection();
-    await connection.query(`
+    await database.withConnection((connection) => connection.query(`
       CREATE TABLE IF NOT EXISTS config (
         guild_id VARCHAR(18) NOT NULL PRIMARY KEY,
         ${Object.entries(columns).map(([name, { dbType }]) => `${name} ${dbType}`).join(',')}
       )
-    `);
-    connection.release();
+    `));
   } catch (err) {
     logger.error('Could not insert "config" table.');
     logger.fatal(err);
@@ -294,13 +286,11 @@ export async function setup(client: Client): Promise<void> {
   client.getCommandPrefixOffset = async (message: Discord.Message): Promise<number> => {
     let prefix: string;
     try {
-      const connection = await database.getConnection();
       if (typeof message.guild === 'undefined') {
         prefix = config.get('prefix');
       } else {
-        prefix = await getPrefix(connection, client, message.guild.id);
+        prefix = await database.withConnection(getPrefix, client, message.guild.id);
       }
-      connection.release();
     } catch (err) {
       logger.error('Could not get prefix from database.');
       logger.fatal(err);

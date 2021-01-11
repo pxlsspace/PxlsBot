@@ -52,8 +52,7 @@ async function execute({ client, message }: Context): Promise<void> {
   embed.setColor(Color.rainbow.skyblue.toColorResolvable());
   if (args.length < 2) {
     try {
-      const connection = await database.getConnection();
-      const result = await connection.query(`
+      const dbResult = await database.withConnection((connection) => connection.query(`
         SELECT
           *
         FROM
@@ -62,14 +61,15 @@ async function execute({ client, message }: Context): Promise<void> {
           guild_id = $1
       `, [
         message.guild.id
-      ]);
-      connection.release();
-      if (result.rowCount < 1) {
+      ]));
+
+      if (dbResult.rowCount < 1) {
         await message.channel.send('This server has no audit log entries.');
         return;
       }
+
       const formattedArr: string[] = [];
-      for (const auditLog of <DatabaseAuditLog[]> result.rows) {
+      for (const auditLog of <DatabaseAuditLog[]> dbResult.rows) {
         const user = await client.users.fetch(auditLog.user_id);
         const command = commands.find(cmd => cmd.id === auditLog.command_id);
         const commandID = command.id ?? auditLog.command_id;
@@ -97,21 +97,20 @@ async function execute({ client, message }: Context): Promise<void> {
         embed.setDescription(formattedStr);
         await message.channel.send(embed);
       }
-      return;
     } catch (err) {
       logger.error(err);
       await message.channel.send('Could not display audit log. Details have been logged.');
-      return;
     }
+    return;
   }
+
   if (isNaN(Number(args[1]))) {
     await message.channel.send('You must specify a valid audit log ID - not a number.');
     return;
   }
   const id = parseInt(args[1]);
   try {
-    const connection = await database.getConnection();
-    const result = await connection.query(`
+    const dbResult = await database.withConnection((connection) => connection.query(`
       SELECT
         *
       FROM
@@ -122,13 +121,12 @@ async function execute({ client, message }: Context): Promise<void> {
     `, [
       message.guild.id,
       id
-    ]);
-    connection.release();
-    if (result.rowCount < 1) {
+    ]));
+    if (dbResult.rowCount < 1) {
       await message.channel.send(`Could not find audit log by ID \`${id}\`.`);
       return;
     }
-    const auditLog = result.rows[0] as DatabaseAuditLog;
+    const auditLog = dbResult.rows[0] as DatabaseAuditLog;
     const user = await client.users.fetch(auditLog.user_id);
     const command = commands.find(cmd => cmd.id === auditLog.command_id);
     const commandID = command.id ?? auditLog.command_id;
@@ -159,8 +157,7 @@ command.execute = execute;
 
 export async function setup(client: Client): Promise<void> {
   try {
-    const connection = await database.getConnection();
-    await connection.query(`
+    await database.withConnection((connection) => connection.query(`
       CREATE TABLE IF NOT EXISTS auditlog (
         id SERIAL NOT NULL PRIMARY KEY,
         guild_id VARCHAR(18) NOT NULL,
@@ -169,8 +166,7 @@ export async function setup(client: Client): Promise<void> {
         message TEXT,
         timestamp TIMESTAMP NOT NULL DEFAULT NOW()
       )
-    `);
-    connection.release();
+    `));
   } catch (err) {
     logger.error('Could not insert "auditlog" table.');
     logger.fatal(err);
