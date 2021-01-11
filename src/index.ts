@@ -9,7 +9,8 @@ import * as config from './config';
 const EXTENSION_BASE_PATH = path.resolve(__dirname, './extensions');
 
 export const client = new Client({
-  presence: config.get('presence')
+  presence: config.get('presence'),
+  partials: ['USER', 'CHANNEL', 'GUILD_MEMBER', 'MESSAGE', 'REACTION']
 });
 
 /** Attempts to log into Discord. */
