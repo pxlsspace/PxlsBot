@@ -1,6 +1,5 @@
 import * as Discord from 'discord.js';
 import * as pg from 'pg';
-import { DatabaseError } from 'pg-protocol';
 
 import { Client } from '../client';
 import * as database from '../database';
@@ -28,7 +27,51 @@ const columns = {
     },
     stringToDatabase: (_client, value) => value,
     databaseToObject: (_client, value) => value
-  } as ConfigValueDefinition<string, string>
+  } as ConfigValueDefinition<string, string>,
+  'starboard_channel': {
+    dbType: 'VARCHAR(18)',
+    stringToDatabase: async (client, value) => {
+      if (value.toLowerCase() === 'none') {
+        return null;
+      }
+
+      const match = /^(?:<#)?(\d+)>?$/.exec(value);
+      if (match == null) {
+        throw new Error('must be a channel id or channel mention');
+      }
+      const channel = await client.channels.fetch(match[1]);
+      if (channel == null) {
+        throw new Error('channel not found');
+      }
+      if (!channel.isText()) {
+        throw new Error('channel must be a text channel');
+      }
+      return channel.id;
+    },
+    databaseToObject: (client, value) => {
+      return client.channels.fetch(value)
+        .catch(() => null as Discord.TextChannel);
+    },
+    objectToString: (value) => `#${value.name}`
+  } as ConfigValueDefinition<string, Discord.TextChannel>,
+  'starboard_threshold': {
+    dbType: 'SMALLINT',
+    default: 4,
+    stringToDatabase: (_client, value) => {
+      const val = parseInt(value, 16);
+      if (isNaN(val)) {
+        throw new Error('not a number');
+      }
+      if (val <= 1) {
+        throw new Error('threshold is too small');
+      }
+      if (val > 32767) { // SMALLINT max value
+        throw new Error('threshold is too big');
+      }
+      return val;
+    },
+    databaseToObject: (_client, value) => value
+  } as ConfigValueDefinition<number, number>
   /* eslint-enable quote-props */
 } as const;
 
