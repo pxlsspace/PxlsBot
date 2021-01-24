@@ -10,7 +10,10 @@ const EXTENSION_BASE_PATH = path.resolve(__dirname, './extensions');
 
 export const client = new Client({
   presence: config.get('presence'),
-  partials: ['USER', 'CHANNEL', 'GUILD_MEMBER', 'MESSAGE', 'REACTION']
+  partials: ['USER', 'CHANNEL', 'GUILD_MEMBER', 'MESSAGE', 'REACTION'],
+  allowedMentions: {
+    roles: [] // disallow @everyone and @here mentions, among other role mentions
+  }
 });
 
 /** Attempts to log into Discord. */
