@@ -16,10 +16,31 @@ export function getPool(): pg.Pool {
 
 /**
  * Gets a database pool connection.
- * @returns {pg.Pool}
+ * @returns {pg.PoolClient}
  */
 export function getConnection(): Promise<pg.PoolClient> {
   return database.connect();
+}
+
+/**
+ * Creates a database pool connection, runs a function with this connection,
+ * and finally releases the connection once it's done.
+ * @param fn The function to run with the connection.
+ * @param rest Other arguments passed to the function.
+ */
+export async function withConnection<A extends unknown[], T = unknown>(
+  fn: (connection: pg.PoolClient, ...rest: A) => T,
+  ...rest: A
+): Promise<T> {
+  let connection: pg.PoolClient;
+  try {
+    connection = await getConnection();
+    return fn(connection, ...rest);
+  } finally {
+    if (connection != null) {
+      connection.release();
+    }
+  }
 }
 
 /**

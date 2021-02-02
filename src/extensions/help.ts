@@ -38,9 +38,7 @@ async function execute({ client, message }: Context): Promise<void> {
       return;
     }
     const permissions = new Discord.Permissions(command.permissions);
-    const connection = await database.getConnection();
-    const prefix = await getPrefix(connection, client, message.guild.id);
-    connection.release();
+    const prefix = await database.withConnection(getPrefix, client, message.guild.id);
     const helpText = `
       **Description:** ${command.description}
       **Usage:** \`${prefix}${command.usage}\`
