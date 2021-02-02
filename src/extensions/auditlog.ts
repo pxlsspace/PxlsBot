@@ -18,8 +18,6 @@ type DatabaseAuditLog = {
   /* eslint-enable camelcase */
 }
 
-let commands: Command[];
-
 /**
  * Inserts an audit log entry.
  * @param {pg.PoolClient} connection The database connection.
@@ -71,7 +69,7 @@ async function execute({ client, message }: Context): Promise<void> {
       const formattedArr: string[] = [];
       for (const auditLog of <DatabaseAuditLog[]> dbResult.rows) {
         const user = await client.users.fetch(auditLog.user_id);
-        const command = commands.find(cmd => cmd.id === auditLog.command_id);
+        const command = client.commands.find(cmd => cmd.id === auditLog.command_id);
         const commandID = command.id ?? auditLog.command_id;
         const timestamp = logger.getDateTime(auditLog.timestamp, true);
         formattedArr.push(`
@@ -128,7 +126,7 @@ async function execute({ client, message }: Context): Promise<void> {
     }
     const auditLog = dbResult.rows[0] as DatabaseAuditLog;
     const user = await client.users.fetch(auditLog.user_id);
-    const command = commands.find(cmd => cmd.id === auditLog.command_id);
+    const command = client.commands.find(cmd => cmd.id === auditLog.command_id);
     const commandID = command.id ?? auditLog.command_id;
     embed.setTitle(`Audit Log #${id}`);
     embed.setAuthor(`${user.tag} (${user.id})`, user.displayAvatarURL({ dynamic: true }));
