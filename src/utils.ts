@@ -23,6 +23,18 @@ export function clamp(x: number, min: number, max: number): number {
   return x < min ? min : x > max ? max : x;
 }
 
+/**
+ * Shortens a string up to the specified max length, with a string appended at the end.
+ * e.g.: ellipsis('abcdefg', 4) => 'abc…'
+ * @param {string} str The string to shorten.
+ * @param {number} maxLength The maximum length for the shortened string.
+ * @param {string} [suffix=…] The string to append at the end in case the input exceeds maxLength.
+ * @returns {string} The shortened string.
+ */
+export function ellipsis(str: string, maxLength: number, suffix = '…'): string {
+  return str.length > maxLength ? str.substring(0, maxLength - suffix.length) + suffix : str;
+}
+
 export class Color {
   public red: number;
   public green: number;
