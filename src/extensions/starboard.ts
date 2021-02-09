@@ -159,9 +159,9 @@ export async function setup(client: Client): Promise<void> {
   try {
     await database.withConnection((connection) => connection.query(`
       CREATE TABLE IF NOT EXISTS starboard_messages (
-        guild_id VARCHAR(18) NOT NULL,
-        source_message_id VARCHAR(18) NOT NULL,
-        board_message_id VARCHAR(18) NOT NULL
+        guild_id VARCHAR(20) NOT NULL,
+        source_message_id VARCHAR(20) NOT NULL,
+        board_message_id VARCHAR(20) NOT NULL
       );
       CREATE UNIQUE INDEX IF NOT EXISTS starboard_guild_source_pair
       ON starboard_messages(guild_id, source_message_id);

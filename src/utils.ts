@@ -176,7 +176,7 @@ export class Color {
  * @returns {boolean} Whether the input snowflake is valid or not.
  */
 export function isSnowflake(input: string): boolean {
-  return !isNaN(Number(input)) && input.length === 18;
+  return !isNaN(Number(input)) && input.length > 0 && input.length <= 20;
 }
 
 /**

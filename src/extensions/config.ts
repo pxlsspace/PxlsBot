@@ -29,7 +29,7 @@ const columns = {
     databaseToObject: (_client, value) => value
   } as ConfigValueDefinition<string, string>,
   'starboard_channel': {
-    dbType: 'VARCHAR(18)',
+    dbType: 'VARCHAR(20)',
     stringToDatabase: async (client, value) => {
       if (value.toLowerCase() === 'none') {
         return null;
@@ -316,7 +316,7 @@ export async function setup(client: Client): Promise<void> {
   try {
     await database.withConnection((connection) => connection.query(`
       CREATE TABLE IF NOT EXISTS config (
-        guild_id VARCHAR(18) NOT NULL PRIMARY KEY,
+        guild_id VARCHAR(20) NOT NULL PRIMARY KEY,
         ${Object.entries(columns).map(([name, { dbType }]) => `${name} ${dbType}`).join(',')}
       )
     `));

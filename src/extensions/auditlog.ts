@@ -158,8 +158,8 @@ export async function setup(client: Client): Promise<void> {
     await database.withConnection((connection) => connection.query(`
       CREATE TABLE IF NOT EXISTS auditlog (
         id SERIAL NOT NULL PRIMARY KEY,
-        guild_id VARCHAR(18) NOT NULL,
-        user_id VARCHAR(18) NOT NULL,
+        guild_id VARCHAR(20) NOT NULL,
+        user_id VARCHAR(20) NOT NULL,
         command_id TEXT,
         message TEXT,
         timestamp TIMESTAMP NOT NULL DEFAULT NOW()
