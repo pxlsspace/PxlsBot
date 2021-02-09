@@ -172,68 +172,77 @@ export async function setup(client: Client): Promise<void> {
     return;
   }
 
-  async function handleMessageReactionChange(reaction: Discord.MessageReaction): Promise<void> {
+  const processingQueue: Record<string, Promise<void>> = {};
+  async function queueMessageHandling(msgID: string, cb: () => Promise<void>) {
+    const promise = processingQueue[msgID] ?? Promise.resolve();
+    processingQueue[msgID] = promise;
+    await promise.then(() => cb());
+  }
+
+  function handleMessageReactionChange(reaction: Discord.MessageReaction): Promise<void> {
     const sourceMessage = reaction.message;
     if (reaction.emoji.name !== STAR_EMOJI || sourceMessage.channel.type === 'dm') {
       return;
     }
 
-    const guildID = sourceMessage.guild.id;
-    try {
-      await database.withConnection(async (connection) => {
-        const boardChannel = await getStarboardChannel(connection, client, guildID);
-        if (boardChannel == null) {
-          return;
-        }
-        if (!canManageStarboard(boardChannel)) {
-          // insuficient permissions
-          return;
-        }
-        if (sourceMessage.channel.id === boardChannel.id) {
-          // disallow star-ing messages from the starboard itself
-          return;
-        }
-
-        const [boardMessage, threshold] = await Promise.all([
-          await getLinkedBoardMessage(connection, guildID, sourceMessage.id, boardChannel),
-          getStarboardThreshold(connection, client, guildID)
-        ]);
-
-        reaction = await reaction.fetch(); // make sure we have the entire reaction
-
-        if (reaction.count === 0) {
-          // remove board message from channel and database
-          await removeBoardMessage(connection, guildID, sourceMessage, boardMessage);
-        } else {
-          const makeEmbed = () => makeEmbedForMessage(sourceMessage, reaction.count);
-          if (boardMessage == null || boardMessage.deleted) {
-            if (reaction.count >= threshold) {
-              // send board message and try to insert message into database
-              const newBoardMessage = await boardChannel.send(await makeEmbed());
-              await database.withConnection((connection) => connection.query(`
-                INSERT INTO
-                  starboard_messages
-                  (guild_id, source_message_id, board_message_id)
-                VALUES ($1, $2, $3)
-                ON CONFLICT (guild_id, source_message_id)
-                DO UPDATE SET
-                  board_message_id = $3
-              `, [
-                guildID,
-                sourceMessage.id,
-                newBoardMessage.id
-              ]));
-            }
-          } else {
-            // update board message with new star count
-            await boardMessage.edit(await makeEmbed());
+    return queueMessageHandling(sourceMessage.id, async () => {
+      const guildID = sourceMessage.guild.id;
+      try {
+        await database.withConnection(async (connection) => {
+          const boardChannel = await getStarboardChannel(connection, client, guildID);
+          if (boardChannel == null) {
+            return;
           }
-        }
-      });
-    } catch (err) {
-      logger.error(`(starboard) Could not handle star reaction change on guild ${guildID} message ${sourceMessage.channel.id}-${sourceMessage.id}.`);
-      logger.error(err);
-    }
+          if (!canManageStarboard(boardChannel)) {
+            // insuficient permissions
+            return;
+          }
+          if (sourceMessage.channel.id === boardChannel.id) {
+            // disallow star-ing messages from the starboard itself
+            return;
+          }
+
+          const [boardMessage, threshold] = await Promise.all([
+            await getLinkedBoardMessage(connection, guildID, sourceMessage.id, boardChannel),
+            getStarboardThreshold(connection, client, guildID)
+          ]);
+
+          reaction = await reaction.fetch(); // make sure we have the entire reaction
+
+          if (reaction.count === 0) {
+            // remove board message from channel and database
+            await removeBoardMessage(connection, guildID, sourceMessage, boardMessage);
+          } else {
+            const makeEmbed = () => makeEmbedForMessage(sourceMessage, reaction.count);
+            if (boardMessage == null || boardMessage.deleted) {
+              if (reaction.count >= threshold) {
+                // send board message and try to insert message into database
+                const newBoardMessage = await boardChannel.send(await makeEmbed());
+                await database.withConnection((connection) => connection.query(`
+                  INSERT INTO
+                    starboard_messages
+                    (guild_id, source_message_id, board_message_id)
+                  VALUES ($1, $2, $3)
+                  ON CONFLICT (guild_id, source_message_id)
+                  DO UPDATE SET
+                    board_message_id = $3
+                `, [
+                  guildID,
+                  sourceMessage.id,
+                  newBoardMessage.id
+                ]));
+              }
+            } else {
+              // update board message with new star count
+              await boardMessage.edit(await makeEmbed());
+            }
+          }
+        });
+      } catch (err) {
+        logger.error(`(starboard) Could not handle star reaction change on guild ${guildID} message ${sourceMessage.channel.id}-${sourceMessage.id}.`);
+        logger.error(err);
+      }
+    });
   }
 
   client.on('messageReactionAdd', (reaction) => { void handleMessageReactionChange(reaction); });
