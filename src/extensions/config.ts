@@ -5,7 +5,7 @@ import { Client } from '../client';
 import * as database from '../database';
 import { Command, Context } from '../command';
 import * as logger from '../logger';
-import { Color } from '../utils';
+import { Color, findGuildChannel } from '../utils';
 import * as config from '../config';
 
 import { insertAuditLog } from './auditlog';
@@ -13,8 +13,8 @@ import { insertAuditLog } from './auditlog';
 export type ConfigValueDefinition<DBObjectType, JSObjectType> = {
   dbType: string,
   default?: JSObjectType,
-  stringToDatabase: (client: Client, value: string) => DBObjectType | Promise<DBObjectType>,
-  databaseToObject: (client: Client, value: DBObjectType) => JSObjectType | Promise<JSObjectType>,
+  stringToDatabase: (guild: Discord.Guild, value: string) => DBObjectType | Promise<DBObjectType>,
+  databaseToObject: (guild: Discord.Guild, value: DBObjectType) => JSObjectType | Promise<JSObjectType>,
   objectToString?: (value: JSObjectType) => string | Promise<string>
 }
 
@@ -25,21 +25,17 @@ const columns = {
     get default() {
       return config.get('prefix');
     },
-    stringToDatabase: (_client, value) => value,
-    databaseToObject: (_client, value) => value
+    stringToDatabase: (_guild, value) => value,
+    databaseToObject: (_guild, value) => value
   } as ConfigValueDefinition<string, string>,
   'starboard_channel': {
     dbType: 'VARCHAR(20)',
-    stringToDatabase: async (client, value) => {
+    stringToDatabase: (guild, value) => {
       if (value.toLowerCase() === 'none') {
         return null;
       }
 
-      const match = /^(?:<#)?(\d+)>?$/.exec(value);
-      if (match == null) {
-        throw new Error('must be a channel id or channel mention');
-      }
-      const channel = await client.channels.fetch(match[1]);
+      const channel: Discord.GuildChannel = findGuildChannel(guild, value);
       if (channel == null) {
         throw new Error('channel not found');
       }
@@ -48,16 +44,15 @@ const columns = {
       }
       return channel.id;
     },
-    databaseToObject: (client, value) => {
-      return client.channels.fetch(value)
-        .catch(() => null as Discord.TextChannel);
+    databaseToObject: (guild, value) => {
+      return guild.channels.resolve(value) as Discord.TextChannel;
     },
     objectToString: (value) => `#${value.name}`
   } as ConfigValueDefinition<string, Discord.TextChannel>,
   'starboard_threshold': {
     dbType: 'SMALLINT',
     default: 4,
-    stringToDatabase: (_client, value) => {
+    stringToDatabase: (_guild, value) => {
       const val = parseInt(value, 16);
       if (isNaN(val)) {
         throw new Error('not a number');
@@ -70,7 +65,7 @@ const columns = {
       }
       return val;
     },
-    databaseToObject: (_client, value) => value
+    databaseToObject: (_guild, value) => value
   } as ConfigValueDefinition<number, number>
   /* eslint-enable quote-props */
 } as const;
@@ -117,7 +112,7 @@ export async function get<CN extends keyof typeof columns>(
     ]);
     if (rows.length > 0) {
       const dbValue = (rows[0] as DatabaseGuildConfig)[columnName] as DBObjectType;
-      const jsValue = await columnDefinition.databaseToObject(client, dbValue);
+      const jsValue = await columnDefinition.databaseToObject(client.guilds.resolve(guildID), dbValue);
       result = jsValue ?? columnDefinition.default ?? null;
     }
   } catch (err) {
@@ -263,7 +258,7 @@ async function execute({ client, message }: Context): Promise<void> {
       const columnDefinition: ConfigValueDefinition<DBObjectType, JSObjectType> = columns[columnName];
       let valDatabaseObj: DBObjectType;
       try {
-        valDatabaseObj = await columnDefinition.stringToDatabase(client, args[3]);
+        valDatabaseObj = await columnDefinition.stringToDatabase(message.guild, args[3]);
       } catch (err) {
         await message.channel.send(`The specified value is invalid: ${err instanceof Error ? err.message : '<unknown error>'}.`);
         return;
@@ -287,7 +282,7 @@ async function execute({ client, message }: Context): Promise<void> {
           return;
         }
         embed.setColor(Color.rainbow.green.toColorResolvable());
-        const valObj: JSObjectType = await columnDefinition.databaseToObject(client, valDatabaseObj);
+        const valObj: JSObjectType = await columnDefinition.databaseToObject(message.guild, valDatabaseObj);
         embed.setDescription(`Config key \`${columnName}\` has been set to ${await safeObjectToString(columnDefinition, valObj)}.`);
         await message.channel.send(embed);
         return;
