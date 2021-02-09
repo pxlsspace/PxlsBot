@@ -74,6 +74,8 @@ type ColumnDBObjectType<CN extends keyof typeof columns> =
   typeof columns[CN] extends ConfigValueDefinition<infer T, unknown> ? T : never;
 type ColumnJSObjectType<CN extends keyof typeof columns> =
   typeof columns[CN] extends ConfigValueDefinition<unknown, infer T> ? T : never;
+type ConfigValueDefinitionOfColumn<CN extends keyof typeof columns> =
+  ConfigValueDefinition<ColumnDBObjectType<CN>, ColumnJSObjectType<CN>>;
 
 export type DatabaseGuildConfig = {
   // eslint-disable-next-line camelcase
@@ -97,7 +99,7 @@ export async function get<CN extends keyof typeof columns>(
 ): Promise<ColumnJSObjectType<CN> | undefined> {
   type DBObjectType = ColumnDBObjectType<CN>;
   type JSObjectType = ColumnJSObjectType<CN>;
-  const columnDefinition = columns[columnName] as ConfigValueDefinition<DBObjectType, JSObjectType>;
+  const columnDefinition = columns[columnName] as ConfigValueDefinitionOfColumn<typeof columnName>;
   let result: JSObjectType | undefined = columnDefinition.default;
   try {
     const { rows } = await connection.query(`
@@ -148,7 +150,7 @@ async function formatColumn(
   columnName: keyof typeof columns,
   value: ColumnJSObjectType<typeof columnName>
 ) {
-  const columnDefinition: ConfigValueDefinition<unknown, typeof value> = columns[columnName];
+  const columnDefinition: ConfigValueDefinitionOfColumn<typeof columnName> = columns[columnName];
   return `${columnName} : ${await safeObjectToString(columnDefinition, value)}`;
 }
 
@@ -198,10 +200,13 @@ async function execute({ client, message }: Context): Promise<void> {
         }
         const guildConfig = rows[0] as DatabaseGuildConfig;
         const formattedColumnPromises = Object.keys(guildConfig)
-          .filter(key => Object.keys(columns).includes(key))
-          .map(key => {
+          .filter((key) => Object.keys(columns).includes(key))
+          .map(async (key) => {
             const columnName = key as keyof typeof columns;
-            return formatColumn(columnName, guildConfig[columnName] ?? columns[columnName].default);
+            const dbValue = guildConfig[columnName];
+            const columnDefinition: ConfigValueDefinitionOfColumn<typeof columnName> = columns[columnName];
+            const value = await columnDefinition.databaseToObject(message.guild, dbValue);
+            return await formatColumn(columnName, value ?? columnDefinition.default);
           });
         embed.setDescription((await Promise.all(formattedColumnPromises)).join('\n'));
         await message.channel.send(embed);
@@ -252,11 +257,8 @@ async function execute({ client, message }: Context): Promise<void> {
         await message.channel.send('You must specify a value.');
         return;
       }
-      // NOTE(netux): there is probably a better way of do this...
-      type DBObjectType = ColumnDBObjectType<typeof columnName>;
-      type JSObjectType = ColumnJSObjectType<typeof columnName>;
-      const columnDefinition: ConfigValueDefinition<DBObjectType, JSObjectType> = columns[columnName];
-      let valDatabaseObj: DBObjectType;
+      const columnDefinition: ConfigValueDefinitionOfColumn<typeof columnName> = columns[columnName];
+      let valDatabaseObj: ColumnDBObjectType<typeof columnName>;
       try {
         valDatabaseObj = await columnDefinition.stringToDatabase(message.guild, args[3]);
       } catch (err) {
@@ -282,7 +284,7 @@ async function execute({ client, message }: Context): Promise<void> {
           return;
         }
         embed.setColor(Color.rainbow.green.toColorResolvable());
-        const valObj: JSObjectType = await columnDefinition.databaseToObject(message.guild, valDatabaseObj);
+        const valObj: ColumnJSObjectType<typeof columnName> = await columnDefinition.databaseToObject(message.guild, valDatabaseObj);
         embed.setDescription(`Config key \`${columnName}\` has been set to ${await safeObjectToString(columnDefinition, valObj)}.`);
         await message.channel.send(embed);
         return;
