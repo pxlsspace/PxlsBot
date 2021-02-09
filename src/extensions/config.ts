@@ -84,9 +84,9 @@ export type DatabaseGuildConfig = {
 
 /**
  * Returns the value of a config column for the guild.
- * @param {pg.PoolClient} connection The connection.
- * @param {Client} client The Discord Client.
- * @param {string} guildID The guild ID.
+ * @param connection The connection.
+ * @param client The Discord Client.
+ * @param guildID The guild ID.
  * @returns The config value, or undefined if the guild has not setup config and no default is set.
  */
 export async function get<CN extends keyof typeof columns>(
@@ -124,10 +124,10 @@ export async function get<CN extends keyof typeof columns>(
 
 /**
  * Returns the configured prefix for the guild, or the default one if none.
- * @param {pg.PoolClient} connection The connection.
- * @param {Client} client The Discord Client.
- * @param {string} guildID The guild ID.
- * @returns {Promise<string>} The prefix.
+ * @param connection The connection.
+ * @param client The Discord Client.
+ * @param guildID The guild ID.
+ * @returns The prefix.
  */
 export const getPrefix = (
   connection: pg.PoolClient,

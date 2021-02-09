@@ -20,9 +20,9 @@ type DatabaseAuditLog = {
 
 /**
  * Inserts an audit log entry.
- * @param {pg.PoolClient} connection The database connection.
- * @param {Discord.Message} message The message.
- * @param {string} commandID The command ID.
+ * @param connection The database connection.
+ * @param message The message.
+ * @param commandID The command ID.
  */
 export async function insertAuditLog(connection: pg.PoolClient, message: Discord.Message, commandID: string): Promise<void> {
   try {

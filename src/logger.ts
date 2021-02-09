@@ -82,8 +82,8 @@ const LevelToPrintFn: { [level in LogLevel[number]]: (...args: unknown[]) => voi
 
 /**
  * Logs to the console, and if configured, a log file.
- * @param {string} level The logging level.
- * @param {...any} x The content to log.
+ * @param level The logging level.
+ * @param x The content to log.
  */
 export function log(level?: LogLevel[number], ...x: unknown[]): void {
   // If log is called without the level, move the thing being logged over to x

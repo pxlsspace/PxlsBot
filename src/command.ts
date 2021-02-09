@@ -38,8 +38,8 @@ export class Command implements CommandData {
   }
 
   /**
-   * @param {Discord.GuildMember} member - The guild member.
-   * @returns {boolean} Whether or not the specified member has permission to run this command.
+   * @param member - The guild member.
+   * @returns Whether or not the specified member has permission to run this command.
    */
   hasPermission(member: Discord.GuildMember): boolean {
     return member.hasPermission(this.permissions);
