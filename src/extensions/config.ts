@@ -53,7 +53,7 @@ const columns = {
     dbType: 'SMALLINT',
     default: 4,
     stringToDatabase: (_guild, value) => {
-      const val = parseInt(value, 16);
+      const val = parseInt(value, 10);
       if (isNaN(val)) {
         throw new Error('not a number');
       }
