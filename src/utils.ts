@@ -171,87 +171,130 @@ export class Color {
   }
 }
 
+export const USER_MENTION_REGEX = /^<@(?<isNickname>!?)(?<id>\d+)>$/;
+export const ROLE_MENTION_REGEX = /^<@&(?<id>\d+)>$/;
+export const CHANNEL_MENTION_REGEX = /^<#(?<id>\d+)>$/;
+
 /**
- * @param {string} input The snowflake.
- * @returns {boolean} Whether the input snowflake is valid or not.
+ * @param input The snowflake.
+ * @returns Whether the input snowflake is valid or not.
  */
 export function isSnowflake(input: string): boolean {
   return !isNaN(Number(input)) && input.length > 0 && input.length <= 20;
 }
 
 /**
- * Finds a user, member, role, or channel by the specified input.
- * @param {string} type The type.
- * @param {Discord.Client} client The client.
- * @param {Discord.Message} message The message.
- * @param {string} input The input.
- * @returns {Promise<Discord.User | Discord.GuildMember | Discord.Role | Discord.GuildChannel | false>} The found user, member, role, or channel.
+ * @param input The snowflake or user mention.
+ * @returns The extracted snowflake, or null if the input does not represent a user.
  */
-export function find(type: string, client: Discord.Client, message: Discord.Message, input: string): Promise<Discord.User | Discord.GuildMember | Discord.Role | Discord.GuildChannel | false> {
-  switch (type) {
-    case 'user': {
-      return findUser(client, input);
-    }
-    case 'member': {
-      return findMember(message, input);
-    }
-    case 'role': {
-      return findRole(message, input);
-    }
-    case 'channel': {
-      return Promise.resolve(findChannel(message, input));
-    }
+export function resolveUserID(input: string): string | null {
+  if (isSnowflake(input)) {
+    return input;
   }
-  return Promise.resolve(false);
+  const match = USER_MENTION_REGEX.exec(input);
+  return match?.groups.id ?? null;
 }
 
-/** Finds a user by the input. */
-export const findUser = async (client: Discord.Client, input: string): Promise<Discord.User | false> => {
-  if (isSnowflake(input)) {
-    // Attempt to fetch the user by their ID
-    return await client.users.fetch(input).catch(() => false);
-  } else {
-    // Attempt to find the user by their tag
-    return client.users.cache.find(v => v.tag.toLowerCase() === input.toLowerCase());
+/**
+ * Finds a user by the input.
+ * @param manager The user manager or client that provides a way to find or fetch users.
+ * @param input The user-provided input.
+ * @returns A promise resolving with the user found, or null if no user was found with the input provided.
+ */
+export async function findUser(manager: Discord.Client | Discord.UserManager, input: string): Promise<Discord.User | null> {
+  if (manager instanceof Discord.Client) {
+    manager = manager.users;
   }
-};
-/** Finds a member by the input. */
-export const findMember = async (message: Discord.Message, input: string): Promise<Discord.GuildMember | false> => {
-  if (isSnowflake(input)) {
-    // Attempt to fetch the member by their ID
-    return await message.guild.members.fetch(input).catch(() => false);
-  } else {
-    // Attempt to fetch the member by their display name or username
-    return message.guild.members.cache.find(v => v.displayName.toLowerCase() === input.toLowerCase());
+
+  const id = resolveUserID(input);
+  return id != null
+    // Attempt to fetch by their ID
+    ? await manager.fetch(id).catch<null>(() => null)
+    // Attempt to fetch by their tag (username#discrim)
+    : manager.cache.find((v) => v.tag.toLowerCase() === input.toLowerCase()) ?? null;
+}
+
+/**
+ * Finds a member by the input.
+ * @param manager The guild member manager or guild that provides a way to find or fetch members.
+ * @param input The user-provided input.
+ * @returns A promise resolving with the member found, or null if no member was found with the input provided.
+ */
+export async function findMember(manager: Discord.Guild | Discord.GuildMemberManager, input: string): Promise<Discord.GuildMember | null> {
+  if (manager instanceof Discord.Guild) {
+    manager = manager.members;
   }
-};
-/** Finds a role by the input. */
-export const findRole = async (message: Discord.Message, input: string): Promise<Discord.Role | false> => {
+
+  const id = resolveUserID(input);
+  return id != null
+    // Attempt to fetch by their ID
+    ? await manager.fetch(id).catch<null>(() => null)
+    // Attempt to fetch by their display name (nickname, if they have one, or username)
+    : manager.cache.find(v => v.displayName.toLowerCase() === input.toLowerCase());
+}
+
+/**
+ * @param input The snowflake or role mention.
+ * @returns The extracted snowflake, or null if the input does not represent a role.
+ */
+export function resolveRoleID(input: string): string | null {
   if (isSnowflake(input)) {
-    // Attempt to get the role by the ID
-    return await message.guild.roles.fetch(input) ?? false;
-  } else {
-    // Attempt to get the role by the name
-    // The first role with the matching name will be returned
-    return message.guild.roles.cache.find(v => v.name.toLowerCase() === input.toLowerCase()) ?? false;
+    return input;
   }
-};
-/** Finds a channel by the input. */
-export const findChannel = (message: Discord.Message, input: string): Discord.GuildChannel | false => {
+  const match = ROLE_MENTION_REGEX.exec(input);
+  return match?.groups.id ?? null;
+}
+
+/**
+ * Finds a role by the input.
+ * @param manager The role manager or guild that provides a way to find or fetch roles.
+ * @param input The user-provided input.
+ * @returns A promise resolving with the role found, or null if no role was found with the input provided.
+ */
+export async function findRole(manager: Discord.Guild | Discord.RoleManager, input: string): Promise<Discord.Role | null> {
+  if (manager instanceof Discord.Guild) {
+    manager = manager.roles;
+  }
+
+  const id = resolveRoleID(input);
+  return id != null
+    // Attempt to fetch by its ID
+    ? await manager.fetch(id).catch<null>(() => null)
+    // Attempt to fetch by its name
+    : manager.cache.find(v => v.name.toLowerCase() === input.toLowerCase()) ?? null;
+}
+
+/**
+ * @param input The snowflake or channel mention.
+ * @returns The extracted snowflake, or null if the input does not represent a channel.
+ */
+export function resolveChannelID(input: string): string | null {
   if (isSnowflake(input)) {
-    // Attempt to get the channel by the ID
-    return message.guild.channels.cache.get(input) ?? false;
-  } else {
-    const match = /^(?:<#)?(?<id>\d+)>?$/.exec(input);
-    if (match != null) {
-      // Attempt to get channel by mention
-      return message.guild.channels.cache.get(match.groups.id) ?? false;
-    } else {
-      // Attempt to get the channel by the name
-      return message.guild.channels.cache.find(v => v.name.toLowerCase() === input.toLowerCase()) ?? false;
-    }
+    return input;
   }
-};
+  const match = CHANNEL_MENTION_REGEX.exec(input);
+  return match?.groups.id ?? null;
+}
+
+/**
+ * Finds a channel by the input.
+ * @param manager The guild channel manager or guild that provides a way to find or fetch guild channels.
+ * @param input The user-provided input.
+ * @returns The guild channel found, or null if no guild channel was found with the input provided.
+ */
+export function findGuildChannel(manager: Discord.Guild | Discord.GuildChannelManager, input: string): Discord.GuildChannel | null {
+  if (manager instanceof Discord.Guild) {
+    manager = manager.channels;
+  }
+
+  const id = resolveChannelID(input);
+  return (id != null
+    // Attempt to fetch by its ID
+    ? manager.cache.get(id)
+    // Attempt to fetch by its name
+    : manager.cache.find(v => v.name.toLowerCase() === input.toLowerCase())
+  ) ?? null;
+}
 
 /**
  * Truncates the specified text and appends chars to the end, if specified.
