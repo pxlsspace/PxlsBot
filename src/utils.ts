@@ -1,18 +1,6 @@
 import * as Discord from 'discord.js';
 
 /**
- * Multiplies the specified numbers.
- * @param {number} x The number to multiply by.
- * @param  {...number} values The numbers to multiply.
- * @return {number[]} The multiplied numbers.
- */
-export function multiplyBy(x: number, ...values: number[]): number[] {
-  const multiplied: number[] = [];
-  values.forEach(value => multiplied.push(value * x));
-  return multiplied;
-}
-
-/**
  * Clamps the specified number between min and max.
  * @param {number} x The number to clamp.
  * @param {number} min The minimum value.
@@ -188,7 +176,7 @@ export class Color {
  * @returns {boolean} Whether the input snowflake is valid or not.
  */
 export function isSnowflake(input: string): boolean {
-  return !isNaN(Number(input)) && input.length === 18;
+  return !isNaN(Number(input)) && input.length > 0 && input.length <= 20;
 }
 
 /**
@@ -254,8 +242,14 @@ export const findChannel = (message: Discord.Message, input: string): Discord.Gu
     // Attempt to get the channel by the ID
     return message.guild.channels.cache.get(input) ?? false;
   } else {
-    // Attempt to get the channel by the name
-    return message.guild.channels.cache.find(v => v.name.toLowerCase() === input.toLowerCase()) ?? false;
+    const match = /^(?:<#)?(?<id>\d+)>?$/.exec(input);
+    if (match != null) {
+      // Attempt to get channel by mention
+      return message.guild.channels.cache.get(match.groups.id) ?? false;
+    } else {
+      // Attempt to get the channel by the name
+      return message.guild.channels.cache.find(v => v.name.toLowerCase() === input.toLowerCase()) ?? false;
+    }
   }
 };
 
