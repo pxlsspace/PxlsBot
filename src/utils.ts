@@ -2,10 +2,10 @@ import * as Discord from 'discord.js';
 
 /**
  * Clamps the specified number between min and max.
- * @param {number} x The number to clamp.
- * @param {number} min The minimum value.
- * @param {number} max The maximum value.
- * @returns {number} The clamped number.
+ * @param x The number to clamp.
+ * @param min The minimum value.
+ * @param max The maximum value.
+ * @returns The clamped number.
  */
 export function clamp(x: number, min: number, max: number): number {
   return x < min ? min : x > max ? max : x;
@@ -14,10 +14,10 @@ export function clamp(x: number, min: number, max: number): number {
 /**
  * Shortens a string up to the specified max length, with a string appended at the end.
  * e.g.: ellipsis('abcdefg', 4) => 'abc…'
- * @param {string} str The string to shorten.
- * @param {number} maxLength The maximum length for the shortened string.
- * @param {string} [suffix=…] The string to append at the end in case the input exceeds maxLength.
- * @returns {string} The shortened string.
+ * @param str The string to shorten.
+ * @param maxLength The maximum length for the shortened string.
+ * @param [suffix=…] The string to append at the end in case the input exceeds maxLength.
+ * @returns The shortened string.
  */
 export function ellipsis(str: string, maxLength: number, suffix = '…'): string {
   return str.length > maxLength ? str.substring(0, maxLength - suffix.length) + suffix : str;
@@ -51,10 +51,10 @@ export class Color {
    * Create a new Color.
    * Color values must be from 0 to 255.
    * @class
-   * @param {number} red The red color value.
-   * @param {number} green The green color value.
-   * @param {number} blue The blue color value.
-   * @param {number} alpha The alpha color value.
+   * @param red The red color value.
+   * @param green The green color value.
+   * @param blue The blue color value.
+   * @param alpha The alpha color value.
    * Defaults to 255 if unspecified.
    */
   constructor(red: number, green: number, blue: number, alpha = 255) {
@@ -67,7 +67,7 @@ export class Color {
   /**
    * Parses the input hex color to a Color.
    * @param hex The hex color.
-   * @returns {Color} The parsed color.
+   * @returns The parsed color.
    */
   static fromHex(hex: string): Color {
     hex = hex.replace('#', '');
@@ -80,10 +80,10 @@ export class Color {
 
   /**
    * Calculates the color value of x between from and to.
-   * @param {number} x The current value, between 0 and 1.
-   * @param {Color} min The minimum color.
-   * @param {Color} max The maximum color.
-   * @returns {Color} The color value.
+   * @param x The current value, between 0 and 1.
+   * @param min The minimum color.
+   * @param max The maximum color.
+   * @returns The color value.
    */
   static lerp(x: number, min: Color, max: Color): Color {
     const rangeR = clamp(min.red + ((max.red - min.red) * x), 0, 255);
@@ -95,9 +95,9 @@ export class Color {
 
   /**
    * Calculates the sum of this color and the other color.
-   * @param {Color} other The other color.
-   * @param {number?} withAlpha The output alpha.
-   * @returns {Color} The summed color.
+   * @param other The other color.
+   * @param withAlpha The output alpha.
+   * @returns The summed color.
    * @see {@link add}
    */
   add(other: Color, withAlpha?: number): Color {
@@ -106,11 +106,11 @@ export class Color {
 
   /**
    * Calculates the sum of the first and second color.
-   * @param {Color} first The first color.
-   * @param {Color} second The second color.
-   * @param {number?} withAlpha The output alpha.
+   * @param first The first color.
+   * @param second The second color.
+   * @param withAlpha The output alpha.
    * Set this param if summing alpha values is undesired.
-   * @returns {Color} The summed color.
+   * @returns The summed color.
    */
   static add(first: Color, second: Color, withAlpha?: number): Color {
     const red = clamp(first.red + second.red, 0, 255);
@@ -125,9 +125,9 @@ export class Color {
 
   /**
    * Calculates the difference of this color and the other color.
-   * @param {Color} other The other color.
-   * @param {number?} withAlpha The output alpha.
-   * @returns {Color} The differed color.
+   * @param other The other color.
+   * @param withAlpha The output alpha.
+   * @returns The differed color.
    * @see {@link subtract}
    */
   subtract(other: Color, withAlpha?: number): Color {
@@ -136,11 +136,11 @@ export class Color {
 
   /**
   * Calculates the difference of the first and second color.
-  * @param {Color} first The first color.
-  * @param {Color} second The second color.
-  * @param {number?} withAlpha The output alpha.
+  * @param first The first color.
+  * @param second The second color.
+  * @param withAlpha The output alpha.
   * Set this param if summing alpha values is undesired.
-  * @returns {Color} The differed color.
+  * @returns The differed color.
   */
   static subtract(first: Color, second: Color, withAlpha?: number): Color {
     const red = clamp(first.red - second.red, 0, 255);
@@ -155,8 +155,8 @@ export class Color {
 
   /**
    * Returns the color values in an array.
-   * @param {boolean} withAlpha Whether to return with the alpha or not.
-   * @returns {number[]} The color values.
+   * @param withAlpha Whether to return with the alpha or not.
+   * @returns The color values.
    */
   toArray(): [ number, number, number, number ] {
     return [this.red, this.green, this.blue, this.alpha];
@@ -164,102 +164,145 @@ export class Color {
 
   /**
    * Returns the color values in a Discord.ColorResolvable array.
-   * @returns {number[]} The color values.
+   * @returns The color values.
    */
   toColorResolvable(): [ number, number, number ] {
     return [this.red, this.green, this.blue];
   }
 }
 
+export const USER_MENTION_REGEX = /^<@(?<isNickname>!?)(?<id>\d+)>$/;
+export const ROLE_MENTION_REGEX = /^<@&(?<id>\d+)>$/;
+export const CHANNEL_MENTION_REGEX = /^<#(?<id>\d+)>$/;
+
 /**
- * @param {string} input The snowflake.
- * @returns {boolean} Whether the input snowflake is valid or not.
+ * @param input The snowflake.
+ * @returns Whether the input snowflake is valid or not.
  */
 export function isSnowflake(input: string): boolean {
   return !isNaN(Number(input)) && input.length > 0 && input.length <= 20;
 }
 
 /**
- * Finds a user, member, role, or channel by the specified input.
- * @param {string} type The type.
- * @param {Discord.Client} client The client.
- * @param {Discord.Message} message The message.
- * @param {string} input The input.
- * @returns {Promise<Discord.User | Discord.GuildMember | Discord.Role | Discord.GuildChannel | false>} The found user, member, role, or channel.
+ * @param input The snowflake or user mention.
+ * @returns The extracted snowflake, or null if the input does not represent a user.
  */
-export function find(type: string, client: Discord.Client, message: Discord.Message, input: string): Promise<Discord.User | Discord.GuildMember | Discord.Role | Discord.GuildChannel | false> {
-  switch (type) {
-    case 'user': {
-      return findUser(client, input);
-    }
-    case 'member': {
-      return findMember(message, input);
-    }
-    case 'role': {
-      return findRole(message, input);
-    }
-    case 'channel': {
-      return Promise.resolve(findChannel(message, input));
-    }
+export function resolveUserID(input: string): string | null {
+  if (isSnowflake(input)) {
+    return input;
   }
-  return Promise.resolve(false);
+  const match = USER_MENTION_REGEX.exec(input);
+  return match?.groups.id ?? null;
 }
 
-/** Finds a user by the input. */
-export const findUser = async (client: Discord.Client, input: string): Promise<Discord.User | false> => {
-  if (isSnowflake(input)) {
-    // Attempt to fetch the user by their ID
-    return await client.users.fetch(input).catch(() => false);
-  } else {
-    // Attempt to find the user by their tag
-    return client.users.cache.find(v => v.tag.toLowerCase() === input.toLowerCase());
+/**
+ * Finds a user by the input.
+ * @param manager The user manager or client that provides a way to find or fetch users.
+ * @param input The user-provided input.
+ * @returns A promise resolving with the user found, or null if no user was found with the input provided.
+ */
+export async function findUser(manager: Discord.Client | Discord.UserManager, input: string): Promise<Discord.User | null> {
+  if (manager instanceof Discord.Client) {
+    manager = manager.users;
   }
-};
-/** Finds a member by the input. */
-export const findMember = async (message: Discord.Message, input: string): Promise<Discord.GuildMember | false> => {
-  if (isSnowflake(input)) {
-    // Attempt to fetch the member by their ID
-    return await message.guild.members.fetch(input).catch(() => false);
-  } else {
-    // Attempt to fetch the member by their display name or username
-    return message.guild.members.cache.find(v => v.displayName.toLowerCase() === input.toLowerCase());
+
+  const id = resolveUserID(input);
+  return id != null
+    // Attempt to fetch by their ID
+    ? await manager.fetch(id).catch<null>(() => null)
+    // Attempt to fetch by their tag (username#discrim)
+    : manager.cache.find((v) => v.tag.toLowerCase() === input.toLowerCase()) ?? null;
+}
+
+/**
+ * Finds a member by the input.
+ * @param manager The guild member manager or guild that provides a way to find or fetch members.
+ * @param input The user-provided input.
+ * @returns A promise resolving with the member found, or null if no member was found with the input provided.
+ */
+export async function findMember(manager: Discord.Guild | Discord.GuildMemberManager, input: string): Promise<Discord.GuildMember | null> {
+  if (manager instanceof Discord.Guild) {
+    manager = manager.members;
   }
-};
-/** Finds a role by the input. */
-export const findRole = async (message: Discord.Message, input: string): Promise<Discord.Role | false> => {
+
+  const id = resolveUserID(input);
+  return id != null
+    // Attempt to fetch by their ID
+    ? await manager.fetch(id).catch<null>(() => null)
+    // Attempt to fetch by their display name (nickname, if they have one, or username)
+    : manager.cache.find(v => v.displayName.toLowerCase() === input.toLowerCase());
+}
+
+/**
+ * @param input The snowflake or role mention.
+ * @returns The extracted snowflake, or null if the input does not represent a role.
+ */
+export function resolveRoleID(input: string): string | null {
   if (isSnowflake(input)) {
-    // Attempt to get the role by the ID
-    return await message.guild.roles.fetch(input) ?? false;
-  } else {
-    // Attempt to get the role by the name
-    // The first role with the matching name will be returned
-    return message.guild.roles.cache.find(v => v.name.toLowerCase() === input.toLowerCase()) ?? false;
+    return input;
   }
-};
-/** Finds a channel by the input. */
-export const findChannel = (message: Discord.Message, input: string): Discord.GuildChannel | false => {
+  const match = ROLE_MENTION_REGEX.exec(input);
+  return match?.groups.id ?? null;
+}
+
+/**
+ * Finds a role by the input.
+ * @param manager The role manager or guild that provides a way to find or fetch roles.
+ * @param input The user-provided input.
+ * @returns A promise resolving with the role found, or null if no role was found with the input provided.
+ */
+export async function findRole(manager: Discord.Guild | Discord.RoleManager, input: string): Promise<Discord.Role | null> {
+  if (manager instanceof Discord.Guild) {
+    manager = manager.roles;
+  }
+
+  const id = resolveRoleID(input);
+  return id != null
+    // Attempt to fetch by its ID
+    ? await manager.fetch(id).catch<null>(() => null)
+    // Attempt to fetch by its name
+    : manager.cache.find(v => v.name.toLowerCase() === input.toLowerCase()) ?? null;
+}
+
+/**
+ * @param input The snowflake or channel mention.
+ * @returns The extracted snowflake, or null if the input does not represent a channel.
+ */
+export function resolveChannelID(input: string): string | null {
   if (isSnowflake(input)) {
-    // Attempt to get the channel by the ID
-    return message.guild.channels.cache.get(input) ?? false;
-  } else {
-    const match = /^(?:<#)?(?<id>\d+)>?$/.exec(input);
-    if (match != null) {
-      // Attempt to get channel by mention
-      return message.guild.channels.cache.get(match.groups.id) ?? false;
-    } else {
-      // Attempt to get the channel by the name
-      return message.guild.channels.cache.find(v => v.name.toLowerCase() === input.toLowerCase()) ?? false;
-    }
+    return input;
   }
-};
+  const match = CHANNEL_MENTION_REGEX.exec(input);
+  return match?.groups.id ?? null;
+}
+
+/**
+ * Finds a channel by the input.
+ * @param manager The guild channel manager or guild that provides a way to find or fetch guild channels.
+ * @param input The user-provided input.
+ * @returns The guild channel found, or null if no guild channel was found with the input provided.
+ */
+export function findGuildChannel(manager: Discord.Guild | Discord.GuildChannelManager, input: string): Discord.GuildChannel | null {
+  if (manager instanceof Discord.Guild) {
+    manager = manager.channels;
+  }
+
+  const id = resolveChannelID(input);
+  return (id != null
+    // Attempt to fetch by its ID
+    ? manager.cache.get(id)
+    // Attempt to fetch by its name
+    : manager.cache.find(v => v.name.toLowerCase() === input.toLowerCase())
+  ) ?? null;
+}
 
 /**
  * Truncates the specified text and appends chars to the end, if specified.
- * @param {string} x The text to truncate.
- * @param {number} max The max length of the text.
- * @param {string} chars The characters to append if the length of the text exceeds max.
- * @param {boolean} inward Whether chars should be appended inwards or outwards.
- * @return {string} The truncated text.
+ * @param x The text to truncate.
+ * @param max The max length of the text.
+ * @param chars The characters to append if the length of the text exceeds max.
+ * @param inward Whether chars should be appended inwards or outwards.
+ * @return The truncated text.
  */
 export function truncate(x: string, max: number, chars: string, inward: boolean): string {
   let retVal = x;
@@ -278,10 +321,10 @@ export function truncate(x: string, max: number, chars: string, inward: boolean)
  * This is similar to s.split(sep, n), but if the text doesn't contain
  * enough of the separator the rest of the string will be the last element
  * of the result.
- * @param {string} s The text to split.
- * @param {number} sep The separator.
- * @param {string} n The amount of times to split.
- * @return {string[]} An array of 1 to n chunks from the original text.
+ * @param s The text to split.
+ * @param sep The separator.
+ * @param n The amount of times to split.
+ * @return An array of 1 to n chunks from the original text.
  */
 export function splitN(s: string, sep: string, n: number): string[] {
   const acc: string[] = [];

@@ -18,7 +18,7 @@ interface PxlsInfo {
 
 /**
  * Gets Pxls information.
- * @returns {Promise<PxlsInfo>} The info.
+ * @returns The info.
  */
 async function getInfo(): Promise<PxlsInfo> {
   const reqURL = `${config.getGameURL()}/info`;
@@ -40,7 +40,7 @@ enum BoardType {
 /**
  * Gets the board by type.
  * @param type The board type.
- * @returns {Promise<Buffer | null>} The board data.
+ * @returns The board data.
  */
 async function getBoard(type: BoardType): Promise<Buffer | null> {
   // TODO: Configurable board source

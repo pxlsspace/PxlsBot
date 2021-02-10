@@ -39,7 +39,7 @@ export class Client extends Discord.Client {
   /**
    * Function used to find if and where the command prefix ends on a message.
    * @param message
-   * @returns {Promise<number> | number} the index at which the prefix ends,
+   * @returns the index at which the prefix ends,
    * or -1 if no prefix was found.
    */
   getCommandPrefixOffset(message: Discord.Message): Promise<number> | number {
